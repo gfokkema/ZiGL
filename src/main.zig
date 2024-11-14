@@ -18,12 +18,6 @@ fn window_sdl() !void {
 }
 
 pub fn main() !void {
-    try GLFW.init();
-    defer GLFW.deinit();
-
-    var window = try GLFW.Window.init();
-    defer window.deinit();
-
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == Check.ok);
     const alloc = gpa.allocator();
@@ -34,8 +28,18 @@ pub fn main() !void {
     try system.check();
     system.cpu_status();
 
+    try GLFW.init();
+    defer GLFW.deinit();
+
+    var window = GLFW.Window{};
+    try window.init(alloc);
+    defer window.deinit();
+
     while (!window.should_close()) {
+        window.process();
         window.activate();
+        window.clear();
         window.render();
+        window.swap();
     }
 }
