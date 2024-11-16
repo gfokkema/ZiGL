@@ -1,7 +1,75 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const ROM = @import("rom.zig");
 
 const CPU = @This();
+
+pub const Memory = struct {
+    const Bank = [0xFFFF]u8;
+
+    banks: []Bank,
+
+    pub fn init(alloc: Allocator) !Memory {
+        return .{ .banks = try alloc.alloc(Bank, 0xFF) };
+    }
+
+    pub fn deinit(self: *Memory, alloc: Allocator) void {
+        alloc.free(self.banks);
+    }
+};
+
+const Flags = packed union {
+    val: u8,
+    flags: packed struct(u8) {
+        c: bool,
+        z: bool,
+        i: bool,
+        d: bool,
+        x: bool,
+        m: bool,
+        v: bool,
+        n: bool,
+    },
+
+    pub fn print(self: *const Flags) void {
+        std.debug.print(" flags:\n", .{});
+        std.debug.print("  n: {} (negative)\n", .{self.flags.n});
+        std.debug.print("  v: {} (overflow)\n", .{self.flags.v});
+        std.debug.print("  m: {} (acc_mode)\n", .{self.flags.m});
+        std.debug.print("  x: {} (reg_mode)\n", .{self.flags.x});
+        std.debug.print("  d: {} (decimal)\n", .{self.flags.d});
+        std.debug.print("  d: {} (irq disable)\n", .{self.flags.i});
+        std.debug.print("  d: {} (zero)\n", .{self.flags.z});
+        std.debug.print("  c: {} (carry)\n", .{self.flags.c});
+    }
+};
+
+memory: Memory,
+
+a: u16 = 0, // accumulator
+x: u16 = 0, // register
+y: u16 = 0, // register
+
+dp: u16 = 0, // direct page pointer
+sp: u16 = 0, // stack pointer
+
+db: u8 = 0, // data bank
+pb: u8 = 0, // program bank
+pc: u16 = 0, // program counter
+
+p: Flags = .{ .val = 0 }, // p flags
+
+pub fn print(self: *const CPU) void {
+    std.debug.print("CPU:\n", .{});
+    std.debug.print(" registers:\n", .{});
+    std.debug.print("   a: 0x{x:0>4}\n", .{self.a});
+    std.debug.print("   x: 0x{x:0>4}    y: 0x{x:0>4}\n", .{ self.x, self.y });
+    std.debug.print(" pointers:\n", .{});
+    std.debug.print("  dp: 0x{x:0>4}\n", .{self.dp});
+    std.debug.print("  db: 0x{x:0>4}   sp: 0x{x:0>4}\n", .{ self.db, self.sp });
+    std.debug.print("  pb: 0x{x:0>4}   pc: 0x{x:0>4}\n", .{ self.pb, self.pc });
+    self.p.print();
+}
 
 pub const InstrType = enum(u8) {
     CLC = 0x18,
@@ -35,57 +103,6 @@ const Instr = struct {
         return 1 + self.data.len;
     }
 };
-
-const Flags = packed union {
-    val: u8,
-    flags: packed struct(u8) {
-        c: bool,
-        z: bool,
-        i: bool,
-        d: bool,
-        x: bool,
-        m: bool,
-        v: bool,
-        n: bool,
-    },
-
-    pub fn print(self: *const Flags) void {
-        std.debug.print(" flags:\n", .{});
-        std.debug.print("  n: {} (negative)\n", .{self.flags.n});
-        std.debug.print("  v: {} (overflow)\n", .{self.flags.v});
-        std.debug.print("  m: {} (acc_mode)\n", .{self.flags.m});
-        std.debug.print("  x: {} (reg_mode)\n", .{self.flags.x});
-        std.debug.print("  d: {} (decimal)\n", .{self.flags.d});
-        std.debug.print("  d: {} (irq disable)\n", .{self.flags.i});
-        std.debug.print("  d: {} (zero)\n", .{self.flags.z});
-        std.debug.print("  c: {} (carry)\n", .{self.flags.c});
-    }
-};
-
-a: u16 = 0, // accumulator
-x: u16 = 0, // register
-y: u16 = 0, // register
-
-dp: u16 = 0, // direct page pointer
-sp: u16 = 0, // stack pointer
-
-db: u8 = 0, // data bank
-pb: u8 = 0, // program bank
-pc: u16 = 0, // program counter
-
-p: Flags = .{ .val = 0 }, // p flags
-
-pub fn print(self: *const CPU) void {
-    std.debug.print("CPU:\n", .{});
-    std.debug.print(" registers:\n", .{});
-    std.debug.print("   a: 0x{x:0>4}\n", .{self.a});
-    std.debug.print("   x: 0x{x:0>4}    y: 0x{x:0>4}\n", .{ self.x, self.y });
-    std.debug.print(" pointers:\n", .{});
-    std.debug.print("  dp: 0x{x:0>4}\n", .{self.dp});
-    std.debug.print("  db: 0x{x:0>4}   sp: 0x{x:0>4}\n", .{ self.db, self.sp });
-    std.debug.print("  pb: 0x{x:0>4}   pc: 0x{x:0>4}\n", .{ self.pb, self.pc });
-    self.p.print();
-}
 
 pub fn LDX(self: *CPU) Instr {
     const args = if (self.p.flags.idx_mode)

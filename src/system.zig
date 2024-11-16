@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const CPU = @import("cpu.zig");
-const Memory = []u8;
+const Memory = CPU.Memory;
 const ROM = @import("rom.zig");
 const System = @This();
 
@@ -11,17 +11,17 @@ memory: Memory,
 rom: ROM,
 
 pub fn init(alloc: Allocator, path: []const u8) !System {
-    const rom = try ROM.init(alloc, path);
+    const memory = try Memory.init(alloc);
     return .{
-        .cpu = .{},
-        .memory = try alloc.alloc(u8, 0xFF * 0xFFFF),
-        .rom = rom,
+        .cpu = .{ .memory = memory },
+        .memory = memory,
+        .rom = try ROM.init(alloc, path),
     };
 }
 
 pub fn deinit(self: *System, alloc: Allocator) void {
     self.rom.deinit();
-    alloc.free(self.memory);
+    self.memory.deinit(alloc);
 }
 
 pub fn check(self: *System) !void {

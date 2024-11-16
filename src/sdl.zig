@@ -95,3 +95,14 @@ pub fn wait_event(_: *SDL) SDLError!Event {
 
     return Event{ .ptr = event };
 }
+
+fn window_sdl() !void {
+    var sdl = try SDL.init();
+    defer sdl.deinit();
+
+    while (true) {
+        try sdl.clear();
+        var event = try sdl.wait_event();
+        if (sdl.is_quit(&event)) break;
+    }
+}
