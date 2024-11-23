@@ -1,3 +1,5 @@
+/imgui.ini
+/.vscode
 /.zig-cache
 /zig-out
 *.sfc

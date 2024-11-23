@@ -27,10 +27,25 @@ pub fn deinit(self: *ImGui) void {
     c.igDestroyContext(self.context);
 }
 
-pub fn render(_: *ImGui) void {
+pub fn menu(_: *ImGui) void {
+    if (!c.igBeginMainMenuBar()) return;
+    defer c.igEndMainMenuBar();
+
+    if (!c.igBeginMenu("File", true)) return;
+    defer c.igEndMenu();
+
+    _ = c.igMenuItemEx("Create", null, null, false, true);
+    _ = c.igMenuItemEx("Open", null, "Ctrl+O", false, true);
+    _ = c.igMenuItemEx("Save", null, "Ctrl+S", false, true);
+    _ = c.igMenuItemEx("Save as..", null, null, false, true);
+}
+
+pub fn render(self: *ImGui) void {
     c.ImGui_ImplOpenGL3_NewFrame();
     c.ImGui_ImplGlfw_NewFrame();
     c.igNewFrame();
+
+    self.menu();
 
     if (c.igCollapsingHeader_TreeNodeFlags("a", c.ImGuiTreeNodeFlags_DefaultOpen))
         c.igText("debug1");

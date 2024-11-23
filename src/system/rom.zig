@@ -5,17 +5,17 @@ const HDROFFS = 0x8000 - 0x40;
 const VECOFFS = 0x8000 - 0x20;
 const MAXBUFF = 16 * 1024 * 1024;
 
-const Header = extern struct {
-    const Mode = enum(u8) {
-        lorom = 0x20,
-        hirom = 0x21,
-        sa1rom = 0x23,
-        fastlorom = 0x30,
-        fasthirom = 0x31,
-        sdd1rom = 0x32,
-        exhirom = 0x35,
-    };
+pub const Mode = enum(u8) {
+    lorom = 0x20,
+    hirom = 0x21,
+    sa1rom = 0x23,
+    fastlorom = 0x30,
+    fasthirom = 0x31,
+    sdd1rom = 0x32,
+    exhirom = 0x35,
+};
 
+const Header = extern struct {
     const Vector = enum(u16) {
         NM_COP = 0xFFE4,
         NM_BRK = 0xFFE6,
@@ -81,11 +81,11 @@ pub fn deinit(self: *ROM) void {
     self.alloc.free(self.data);
 }
 
-pub fn header(self: *ROM) *Header {
+pub fn header(self: *const ROM) *Header {
     return @ptrCast(@alignCast(self.data[HDROFFS .. HDROFFS + 0x40].ptr));
 }
 
-pub fn check(self: *ROM) !void {
+pub fn check(self: *const ROM) !void {
     const h = self.header();
     std.debug.assert(h.chksum == h.chksumc ^ 0xFFFF);
 

@@ -1,11 +1,12 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+
 const ROM = @import("rom.zig");
 
 const CPU = @This();
 
 pub const Memory = struct {
-    const Bank = [0xFFFF]u8;
+    pub const Bank = [0x10000]u8;
 
     banks: []Bank,
 
@@ -93,6 +94,7 @@ pub const InstrType = enum(u8) {
     SEP = 0xE2,
     INX = 0xE8,
     XCE = 0xFB,
+    _,
 };
 
 const Instr = struct {

@@ -10,11 +10,59 @@ pub const Program = @import("program.zig");
 
 const GL = @This();
 
-pub fn init() !GL {
-    return .{};
+const vertices = [_]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
+const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
+
+const vertexShaderSource =
+    \\#version 330 core
+    \\layout (location = 0) in vec3 aPos;
+    \\
+    \\void main()
+    \\{
+    \\   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    \\};
+;
+const fragmentShaderSource =
+    \\#version 330 core
+    \\out vec4 FragColor;
+    \\
+    \\void main()
+    \\{
+    \\   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    \\}
+;
+
+program: Program,
+vao: VAO,
+vbo: VBO,
+
+pub fn init(vs: []const u8, fs: []const u8) !GL {
+    const program = try Program.init_path(vs, fs);
+    const vao = GL.VAO.init();
+    const vbo = GL.VBO.init(.Array);
+    {
+        vao.bind();
+        defer vao.unbind();
+
+        vbo.bind();
+        defer vbo.unbind();
+
+        vbo.upload(f32, &vertices);
+        c.glVertexAttribPointer(0, 3, c.GL_FLOAT, c.GL_FALSE, 3 * @sizeOf(f32), null);
+        c.glEnableVertexAttribArray(0);
+    }
+    return .{
+        .program = program,
+        .vao = vao,
+        .vbo = vbo,
+    };
 }
 
-pub fn deinit(_: *GL) void {}
+pub fn deinit(self: *GL) void {
+    defer self.vbo.deinit();
+    defer self.vao.deinit();
+    defer self.program.deinit();
+}
 
 pub fn clearColor(_: *GL, color: Color) void {
     c.glClearColor(color.r, color.g, color.b, color.a);
@@ -22,6 +70,13 @@ pub fn clearColor(_: *GL, color: Color) void {
 
 pub fn clear(_: *GL) void {
     c.glClear(c.GL_COLOR_BUFFER_BIT);
+}
+
+pub fn draw(self: *GL) void {
+    self.program.use();
+    self.vao.bind();
+    c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+    self.vao.unbind();
 }
 
 const Color = struct {
