@@ -2,3 +2,7 @@
 	path = cimgui
 	url = git@github.com:cimgui/cimgui.git
 	branch = master
+[submodule "gobject"]
+	path = gobject
+	url = git@github.com:ianprime0509/zig-gobject.git
+	branch = main

@@ -1,0 +1,15 @@
+.{
+    .name = "zigl",
+    .version = "0.0.0",
+    .paths = .{
+        "src",
+        "build.zig",
+        "build.zig.zon",
+    },
+    .dependencies = .{
+        .gobject = .{
+            .url = "https://github.com/ianprime0509/zig-gobject/releases/download/v0.2.2/bindings-gnome47.tar.zst",
+            .hash = "12208d70ee791d7ef7e16e1c3c9c1127b57f1ed066a24f87d57fc9f730c5dc394b9d",
+        },
+    },
+}
