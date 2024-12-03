@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const GL = @import("gl.zig");
 const GLFW = @import("glfw.zig");
 const Action = GLFW.Action;
 const Event = GLFW.Event;
@@ -13,7 +14,10 @@ gui: ImGui = undefined,
 queue: *GLFW.Fifo(Event) = undefined,
 window: *c.GLFWwindow = undefined,
 
-const WindowArgs = struct { width: c_int = 1280, height: c_int = 720 };
+const WindowArgs = struct {
+    width: c_int = 1280,
+    height: c_int = 720,
+};
 pub fn init(self: *Window, queue: *GLFW.Fifo(Event), args: WindowArgs) !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -80,19 +84,25 @@ pub fn swap(self: *Window) void {
     c.glfwSwapBuffers(self.window);
 }
 
-fn key_callback(window: ?*c.GLFWwindow, key: c_int, _: c_int, action: c_int, _: c_int) callconv(.C) void {
+fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+    // const ratio: f32 = width / height;
+    GL.c.glViewport(0, 0, width, height);
+}
+
+pub fn key_callback(window: ?*c.GLFWwindow, key: c_int, _: c_int, action: c_int, _: c_int) callconv(.C) void {
     if (c.igGetIO().*.WantCaptureKeyboard) return;
 
     const self: *Window = @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
     const event: Event = switch (@as(Action, @enumFromInt(action))) {
-        Action.PRESS, Action.REPEAT => .{ .key_down = @enumFromInt(key) },
+        Action.PRESS => .{ .key_down = @enumFromInt(key) },
+        Action.REPEAT => .{ .key_repeat = @enumFromInt(key) },
         Action.RELEASE => .{ .key_up = @enumFromInt(key) },
         _ => .err,
     };
     self.queue.writeItem(event) catch {};
 }
 
-fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
+pub fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int) callconv(.C) void {
     if (c.igGetIO().*.WantCaptureMouse) return;
 
     const self: *Window = @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
@@ -102,9 +112,4 @@ fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action: c_int, _: c_int
         else => .err,
     };
     self.queue.writeItem(event) catch {};
-}
-
-fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
-    // const ratio: f32 = width / height;
-    c.glViewport(0, 0, width, height);
 }

@@ -13,26 +13,7 @@ const System = @import("system/system.zig");
 const CPU = System.CPU;
 const ROM = System.ROM;
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == Check.ok);
-    const alloc = gpa.allocator();
-
-    var system = try System.init(alloc);
-    defer system.deinit(alloc);
-    system.cpu_status();
-
-    var rom = try ROM.init(alloc, "lufia.sfc");
-    defer rom.deinit();
-    rom.header().print();
-    try rom.check();
-
-    system.load(&rom);
-
-    std.debug.print("entry? {x}\n", .{
-        @as(CPU.InstrType, @enumFromInt(system.memory.banks[0x00][0x8000])),
-    });
-
+pub fn create_window(alloc: Allocator, system: *System) !void {
     var queue = GLFW.Fifo(GLFW.Event).init(alloc);
     defer queue.deinit();
 
@@ -43,7 +24,7 @@ pub fn main() !void {
     try window.init(&queue, .{});
     defer window.deinit();
 
-    var gl = try GL.init("res/shader.vs", "res/shader.fs");
+    var gl = try GL.init(alloc, "res/shader.vs", "res/shader.fs");
     defer gl.deinit();
 
     while (!window.is_close()) {
@@ -57,6 +38,7 @@ pub fn main() !void {
                     Key.R => system.cpu.print(),
                     else => std.log.debug("key `{}` not implemented yet\n", .{k}),
                 },
+                .key_repeat => {},
                 .key_up => {},
                 .mouse_down => {},
                 .mouse_up => {},
@@ -71,4 +53,28 @@ pub fn main() !void {
         window.swap();
         window.poll();
     }
+}
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == Check.ok);
+    const alloc = gpa.allocator();
+
+    var system = try System.init(alloc);
+    defer system.deinit(alloc);
+
+    var rom = try ROM.init(alloc, "lufia.sfc");
+    defer rom.deinit();
+    try rom.check();
+
+    std.debug.print("debug: {*}\n", .{system.memory.banks});
+    std.debug.print("debug: {*}\n", .{system.cpu.memory.banks});
+
+    system.load(&rom);
+    for (0..20) |_| {
+        // if (i % 5 == 0) system.cpu.print();
+        system.cpu.step();
+    }
+
+    try create_window(alloc, &system);
 }

@@ -27,12 +27,11 @@ fn activate(app: *gtk.Application, _: ?*anyopaque) callconv(.C) void {
     gtk.Window.setChild(window.as(gtk.Window), box.as(gtk.Widget));
 
     var area = gtk.GLArea.new();
-    gtk.Window.setChild(window.as(gtk.Window), area.as(gtk.Widget));
-
     gtk.Box.append(box, area.as(gtk.Widget));
-    gtk.Widget.show(window.as(gtk.Widget));
 
     _ = gtk.GLArea.signals.create_context.connect(area, ?*anyopaque, &initialize, window, .{});
+
+    gtk.Widget.show(window.as(gtk.Widget));
 }
 
 pub fn initialize(area: *gtk.GLArea, _: ?*anyopaque) callconv(.C) *gdk.GLContext {

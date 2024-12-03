@@ -1,9 +1,8 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const GL = @import("gl.zig");
 const Shader = GL.Shader;
 const c = GL.c;
-
-const Program = @This();
 
 const Param = enum(u16) {
     DELETE = c.GL_DELETE_STATUS,
@@ -22,6 +21,8 @@ const Param = enum(u16) {
     }
 };
 
+const Program = @This();
+
 handle: c_uint,
 
 pub fn init(vs: Shader, fs: Shader) !Program {
@@ -31,17 +32,19 @@ pub fn init(vs: Shader, fs: Shader) !Program {
     const program: Program = .{ .handle = handle };
     program.attach(&vs);
     program.attach(&fs);
-    program.link() catch {
-        std.debug.panic("{any}", .{program.log()});
+    program.link() catch |e| {
+        program.log();
+        std.debug.panic("{any}", .{e});
     };
+
     return program;
 }
 
-pub fn init_path(vs_path: []const u8, fs_path: []const u8) !Program {
-    var vs = try GL.Shader.init(.VS, vs_path);
+pub fn init_path(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
+    var vs = try GL.Shader.init_path(alloc, .VS, vs_path);
     defer vs.deinit();
 
-    var fs = try GL.Shader.init(.FS, fs_path);
+    var fs = try GL.Shader.init_path(alloc, .FS, fs_path);
     defer fs.deinit();
 
     return try Program.init(vs, fs);
@@ -56,10 +59,11 @@ pub fn attach(self: *const Program, shader: *const Shader) void {
 }
 
 pub fn link(self: *const Program) !void {
-    var success: c_int = undefined;
     c.glLinkProgram(self.handle);
+
+    var success: c_int = undefined;
     c.glGetProgramiv(self.handle, Param.LINK.int(), &success);
-    if (success == c.GLFW_FALSE) return error.FailedLinkingProgram;
+    if (success == c.GL_FALSE) return error.FailedLinkingProgram;
 }
 
 pub fn log(self: *const Program) void {

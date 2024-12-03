@@ -22,10 +22,6 @@ pub fn deinit(self: *System, alloc: Allocator) void {
     self.memory.deinit(alloc);
 }
 
-pub fn cpu_status(self: *System) void {
-    self.cpu.print();
-}
-
 pub fn load(self: *System, rom: *ROM) void {
     switch (rom.header().mode) {
         ROM.Mode.lorom => {
@@ -36,11 +32,30 @@ pub fn load(self: *System, rom: *ROM) void {
 }
 
 pub fn load_lo(self: *System, rom: *ROM) void {
-    var start: usize = 0;
+    var pos: usize = 0;
     for (self.memory.banks[0x80..]) |*b| {
-        if (start >= rom.data.len) return;
-        const end = @min(start + 0x8000, rom.data.len);
-        @memcpy(b[0x8000..0x10000], rom.data[start .. start + 0x8000]);
-        start += end;
+        if (pos >= rom.data.len) return;
+        const end = @min(pos + 0x8000, rom.data.len);
+        @memcpy(b[0x8000..0x10000], rom.data[pos..end]);
+        pos = end;
+    }
+}
+
+const Range = struct {
+    bank: usize = 0x80,
+    start: usize = 0x0000,
+    len: usize = 0x10000,
+    line: usize = 0x20,
+};
+
+pub fn print_range(self: *System, range: Range) void {
+    const b = self.memory.banks[range.bank];
+    var start = range.start;
+    while (start < range.start + range.len) {
+        std.debug.print("{x:0>2}{x:0>4}  ", .{ range.bank, start });
+        const end = start + range.line;
+        for (b[start..end]) |e| std.debug.print("{x:0>2} ", .{e});
+        std.debug.print("\n", .{});
+        start = end;
     }
 }

@@ -31,6 +31,9 @@ pub fn unbind(self: *const VBO) void {
 }
 
 pub fn upload(self: *const VBO, T: type, data: []const T) void {
+    self.bind();
+    defer self.unbind();
+
     c.glBufferData(
         @intFromEnum(self.vbotype),
         @intCast(data.len * @sizeOf(T)),
