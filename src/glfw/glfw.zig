@@ -4,8 +4,6 @@ const Allocator = std.mem.Allocator;
 pub const ImGui = @import("imgui.zig");
 pub const Window = @import("window.zig");
 pub const c = @cImport({
-    @cInclude("epoxy/gl.h");
-    @cInclude("epoxy/glx.h");
     @cInclude("GLFW/glfw3.h");
 
     @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", "");
@@ -47,6 +45,7 @@ pub const Event = union(enum) {
     err,
     frame: FrameEvent,
     key_down: Key,
+    key_repeat: Key,
     key_up: Key,
     mouse_down: Mouse,
     mouse_up: Mouse,
@@ -61,7 +60,7 @@ pub fn deinit() void {
     c.glfwTerminate();
 }
 
-fn error_callback(err: c_int, c_desc: [*c]const u8) callconv(.C) void {
+pub fn error_callback(err: c_int, c_desc: [*c]const u8) callconv(.C) void {
     const desc = std.mem.span(c_desc);
     std.debug.panic("ERROR {d}: {s}\n", .{ err, desc });
 }

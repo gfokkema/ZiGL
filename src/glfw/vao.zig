@@ -2,6 +2,7 @@ const GL = @import("gl.zig");
 const c = GL.c;
 
 const VAO = @This();
+const VBO = @import("vbo.zig");
 
 handle: c_uint,
 
@@ -21,4 +22,27 @@ pub fn bind(self: *const VAO) void {
 
 pub fn unbind(_: *const VAO) void {
     c.glBindVertexArray(0);
+}
+
+pub fn attrib(
+    self: *const VAO,
+    vbo: *const VBO,
+    idx: usize,
+    elems: usize,
+) void {
+    self.bind();
+    defer self.unbind();
+
+    vbo.bind();
+    defer vbo.unbind();
+
+    c.glVertexAttribPointer(
+        @truncate(idx),
+        @as(c_int, @intCast(elems)),
+        c.GL_FLOAT, // type
+        c.GL_FALSE, // normalized
+        3 * @sizeOf(f32), // stride
+        null, // offset
+    );
+    c.glEnableVertexAttribArray(@truncate(idx));
 }

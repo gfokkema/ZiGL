@@ -11,7 +11,7 @@ pub const Memory = struct {
     banks: []Bank,
 
     pub fn init(alloc: Allocator) !Memory {
-        return .{ .banks = try alloc.alloc(Bank, 0xFF) };
+        return .{ .banks = try alloc.alloc(Bank, 0x100) };
     }
 
     pub fn deinit(self: *Memory, alloc: Allocator) void {
@@ -19,17 +19,34 @@ pub const Memory = struct {
     }
 };
 
+const Mode = enum(u1) {
+    NORMAL = 0,
+    EMULATION = 1,
+};
+
+const RegMode = enum(u1) {
+    u16 = 0,
+    u8 = 1,
+
+    fn size(self: RegMode) u16 {
+        return switch (self) {
+            .u8 => 1,
+            .u16 => 2,
+        };
+    }
+};
+
 const Flags = packed union {
     val: u8,
     flags: packed struct(u8) {
-        c: bool,
-        z: bool,
-        i: bool,
-        d: bool,
-        x: bool,
-        m: bool,
-        v: bool,
-        n: bool,
+        c: bool = false,
+        z: bool = false,
+        i: bool = false,
+        d: bool = false,
+        x: RegMode = RegMode.u16,
+        m: RegMode = RegMode.u16,
+        v: bool = false,
+        n: bool = false,
     },
 
     pub fn print(self: *const Flags) void {
@@ -45,31 +62,38 @@ const Flags = packed union {
     }
 };
 
-memory: Memory,
+const Register = struct {
+    val: u16 = 0,
+};
 
-a: u16 = 0, // accumulator
-x: u16 = 0, // register
-y: u16 = 0, // register
+memory: Memory,
+mode: Mode = Mode.NORMAL,
 
 dp: u16 = 0, // direct page pointer
 sp: u16 = 0, // stack pointer
 
 db: u8 = 0, // data bank
-pb: u8 = 0, // program bank
-pc: u16 = 0, // program counter
+pb: u8 = 0x80, // program bank
+pc: u16 = 0x8000, // program counter
 
 p: Flags = .{ .val = 0 }, // p flags
 
+a: Register = .{}, // accumulator
+x: Register = .{}, // register
+y: Register = .{}, // register
+
 pub fn print(self: *const CPU) void {
-    std.debug.print("CPU:\n", .{});
+    std.debug.print("\nCPU:\n", .{});
     std.debug.print(" registers:\n", .{});
-    std.debug.print("   a: 0x{x:0>4}\n", .{self.a});
-    std.debug.print("   x: 0x{x:0>4}    y: 0x{x:0>4}\n", .{ self.x, self.y });
+    std.debug.print("   a: 0x{x:0>4}\n", .{self.a.val});
+    std.debug.print("   x: 0x{x:0>4}    y: 0x{x:0>4}\n", .{ self.x.val, self.y.val });
     std.debug.print(" pointers:\n", .{});
     std.debug.print("  dp: 0x{x:0>4}\n", .{self.dp});
     std.debug.print("  db: 0x{x:0>4}   sp: 0x{x:0>4}\n", .{ self.db, self.sp });
     std.debug.print("  pb: 0x{x:0>4}   pc: 0x{x:0>4}\n", .{ self.pb, self.pc });
+    std.debug.print(" mode: {}\n", .{self.mode});
     self.p.print();
+    std.debug.print("\n", .{});
 }
 
 pub const InstrType = enum(u8) {
@@ -97,82 +121,102 @@ pub const InstrType = enum(u8) {
     _,
 };
 
-const Instr = struct {
-    cycles: u8,
-    data: []u8,
-
-    pub fn bytes(self: *const Instr) usize {
-        return 1 + self.data.len;
-    }
-};
-
-pub fn LDX(self: *CPU) Instr {
-    const args = if (self.p.flags.idx_mode)
-        self.rom.args(self.pc, 2)
-    else
-        self.rom.args(self.pc, 3);
-    return .{ .cycles = 2, .data = args };
+pub fn arg(self: *CPU, t: type) t {
+    const a: t = self.memory.banks[self.pb][self.pc + 1];
+    std.debug.print(" 0x{x}", .{a});
+    return a;
 }
 
-pub fn LDA(self: *CPU) Instr {
-    const args = if (self.p.flags.acc_mode)
-        self.rom.args(self.pc, 2)
-    else
-        self.rom.args(self.pc, 3);
-    return .{ .cycles = 2, .data = args };
+pub fn push(self: *CPU, t: type, data: t) void {
+    defer self.sp += 1;
+    self.memory.banks[0][self.sp] = data;
 }
 
-pub fn REP(self: *CPU) Instr {
-    const args = self.rom.args(self.pc, 2);
-    self.p.val = self.p.val ^ args[0];
-    return .{ .cycles = 3, .data = args };
+pub fn pull(self: *CPU, t: type) t {
+    defer self.sp -= 1;
+    return self.memory.banks[0][self.sp];
 }
 
-pub fn CPX(self: *CPU) Instr {
-    const args = if (self.p.flags.idx_mode)
-        self.rom.args(self.pc, 2)
-    else
-        self.rom.args(self.pc, 3);
-    return .{ .cycles = 2, .data = args };
+fn _get(self: *CPU, t: type) t {
+    const res = std.mem.readInt(
+        t,
+        @ptrCast(self.memory.banks[self.pb][self.pc + 1 ..]),
+        .little,
+    );
+    std.debug.print(" 0x{x}", .{res});
+    return res;
 }
 
-pub fn SEP(self: *CPU) Instr {
-    const args = self.rom.args(self.pc, 2);
-    self.p.val = self.p.val | args[0];
-    return .{ .cycles = 3, .data = args };
+fn get(self: *CPU, r: RegMode) u16 {
+    return switch (r) {
+        .u8 => self._get(u8),
+        .u16 => self._get(u16),
+    };
 }
 
 pub fn step(self: *CPU) void {
-    while (self.pc < 0x40) {
-        const instr = std.meta.intToEnum(InstrType, self.rom.data[self.pc]) catch {
-            std.debug.panic("Unknown instr: 0x{x:0>2}", .{self.rom.data[self.pc]});
-        };
+    const b = self.memory.banks[self.pb][self.pc];
+    const instr = std.meta.intToEnum(InstrType, b) catch {
+        std.debug.panic("Unknown instr: 0x{x:0>2}", .{b});
+    };
+    std.debug.print("{any}", .{instr});
 
-        const ins: Instr = switch (instr) {
-            .CLC => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .TCS => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .ORA => .{ .cycles = 2, .data = self.rom.args(self.pc, 3) },
-            .PHA => .{ .cycles = 3, .data = self.rom.args(self.pc, 1) },
-            .TCD => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .SEI => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .STA => .{ .cycles = 4, .data = self.rom.args(self.pc, 3) },
-            .BCC => .{ .cycles = 2, .data = self.rom.args(self.pc, 2) },
-            .STAY => .{ .cycles = 5, .data = self.rom.args(self.pc, 3) },
-            .STZ => .{ .cycles = 4, .data = self.rom.args(self.pc, 3) },
-            .STAX => .{ .cycles = 5, .data = self.rom.args(self.pc, 3) },
-            .LDX => self.LDX(),
-            .LDA => self.LDA(),
-            .PLB => .{ .cycles = 4, .data = self.rom.args(self.pc, 1) },
-            .LDAL => .{ .cycles = 5, .data = self.rom.args(self.pc, 4) },
-            .REP => self.REP(),
-            .CLD => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .CPX => self.CPX(),
-            .SEP => self.SEP(),
-            .INX => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-            .XCE => .{ .cycles = 2, .data = self.rom.args(self.pc, 1) },
-        };
-
-        std.debug.print("{d}: {s} [{x:0>2}]: {x}\n", .{ self.pc, @tagName(instr), self.rom.data[self.pc], ins.data });
-        self.pc += ins.bytes();
+    switch (instr) {
+        .SEI => {
+            self.p.flags.i = true;
+            self.pc += 1;
+        },
+        .CLD => {
+            self.p.flags.d = false;
+            self.pc += 1;
+        },
+        .CLC => {
+            self.p.flags.c = false;
+            self.pc += 1;
+        },
+        .XCE => {
+            const t = self.mode;
+            self.mode = @enumFromInt(@intFromBool(self.p.flags.c));
+            self.p.flags.c = @bitCast(@intFromEnum(t));
+            self.pc += 1;
+        },
+        .SEP => {
+            self.p.val = self.p.val | self.arg(u8);
+            self.pc += 2;
+        },
+        .REP => {
+            self.p.val = self.p.val ^ self.arg(u8);
+            self.pc += 2;
+        },
+        .LDA => {
+            self.a.val = self.get(self.p.flags.m);
+            self.pc += 1 + self.p.flags.m.size();
+        },
+        .LDX => {
+            self.x.val = self.get(self.p.flags.x);
+            self.pc += 1 + self.p.flags.x.size();
+        },
+        .STA => {
+            // self.set(@truncate(self.a.val));
+            self.memory.banks[self.pb][self.arg(u16)] = @truncate(self.a.val);
+            self.pc += 3;
+        },
+        .STZ => {
+            self.memory.banks[self.pb][self.arg(u16)] = 0;
+            self.pc += 3;
+        },
+        .PHA => {
+            self.push(u8, @truncate(self.a.val));
+            self.pc += 1;
+        },
+        .PLB => {
+            self.db = self.pull(u8);
+            self.pc += 1;
+        },
+        else => {
+            std.debug.print(" (unimplemented)", .{});
+            self.pc += 1;
+        },
     }
+    std.debug.print("\n", .{});
 }
