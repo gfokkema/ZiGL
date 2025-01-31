@@ -1,7 +1,6 @@
+const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const GL = @import("gl.zig");
-const c = GL.c;
 
 const Type = enum(u16) {
     VS = c.GL_VERTEX_SHADER,

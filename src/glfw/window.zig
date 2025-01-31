@@ -1,3 +1,4 @@
+const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -6,12 +7,11 @@ const GLFW = @import("glfw.zig");
 const Action = GLFW.Action;
 const Event = GLFW.Event;
 const ImGui = GLFW.ImGui;
-const c = GLFW.c;
 
 const Window = @This();
 
 gui: ImGui = undefined,
-queue: *GLFW.Fifo(Event) = undefined,
+queue: *GLFW.Queue = undefined,
 window: *c.GLFWwindow = undefined,
 
 const WindowArgs = struct {
@@ -86,7 +86,7 @@ pub fn swap(self: *Window) void {
 
 fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
     // const ratio: f32 = width / height;
-    GL.c.glViewport(0, 0, width, height);
+    c.glViewport(0, 0, width, height);
 }
 
 pub fn key_callback(window: ?*c.GLFWwindow, key: c_int, _: c_int, action: c_int, _: c_int) callconv(.C) void {

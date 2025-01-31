@@ -1,8 +1,6 @@
+const c = @import("c");
 const std = @import("std");
-
 const GLFW = @import("glfw.zig");
-const System = GLFW.System;
-const c = GLFW.c;
 
 const ImGui = @This();
 

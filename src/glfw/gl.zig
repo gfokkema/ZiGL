@@ -1,10 +1,6 @@
+const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-
-pub const c = @cImport({
-    @cInclude("epoxy/gl.h");
-    @cInclude("epoxy/glx.h");
-});
 
 pub const VAO = @import("vao.zig");
 pub const VBO = @import("vbo.zig");
@@ -18,47 +14,43 @@ const Color = struct {
     a: f32 = 0,
 };
 
+pub const DrawMode = enum(u16) {
+    GL_POINTS = c.GL_POINTS,
+    GL_TRIANGLES = c.GL_TRIANGLES,
+};
+
+pub const ClearMode = enum(u16) {
+    GL_COLOR = c.GL_COLOR_BUFFER_BIT,
+    GL_DEPTH = c.GL_DEPTH_BUFFER_BIT,
+    GL_STENCIL = c.GL_STENCIL_BUFFER_BIT,
+};
+
+const State = struct {
+    program: ?Program = undefined,
+};
+
 const GL = @This();
 
-const vertices = [_]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
-const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
+state: State = .{},
 
-program: Program,
-vao: VAO,
-vbo: VBO,
-
-pub fn init(alloc: Allocator, vs: []const u8, fs: []const u8) !GL {
-    const program = try Program.init_path(alloc, vs, fs);
-    const vao = GL.VAO.init();
-    const vbo = GL.VBO.init(.Array);
-
-    vao.attrib(&vbo, 0, 3);
-    vbo.upload(f32, &vertices);
-
-    return .{
-        .program = program,
-        .vao = vao,
-        .vbo = vbo,
-    };
-}
-
-pub fn deinit(self: *GL) void {
-    defer self.vbo.deinit();
-    defer self.vao.deinit();
-    defer self.program.deinit();
-}
-
-pub fn clearColor(_: *GL, color: Color) void {
+pub fn clearColor(color: Color) void {
     c.glClearColor(color.r, color.g, color.b, color.a);
 }
 
-pub fn clear(_: *GL) void {
-    c.glClear(c.GL_COLOR_BUFFER_BIT);
+pub fn clear() void {
+    c.glClear(@intFromEnum(ClearMode.GL_COLOR));
 }
 
-pub fn draw(self: *GL) void {
-    self.program.use();
-    self.vao.bind();
-    c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
-    self.vao.unbind();
+pub fn draw(mode: DrawMode) void {
+    c.glDrawArrays(@intFromEnum(mode), 0, 3);
+}
+
+pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
+    var vs = try Shader.init_path(alloc, .VS, vs_path);
+    defer vs.deinit();
+
+    var fs = try Shader.init_path(alloc, .FS, fs_path);
+    defer fs.deinit();
+
+    return try Program.init(vs, fs);
 }

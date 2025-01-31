@@ -1,6 +1,4 @@
-const GL = @import("gl.zig");
-const c = GL.c;
-
+const c = @import("c");
 const VBO = @This();
 
 const Type = enum(u16) {
