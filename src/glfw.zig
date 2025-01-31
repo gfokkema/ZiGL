@@ -3,11 +3,9 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Check = std.heap.Check;
 
+const GL = @import("glfw/gl.zig");
 const GLFW = @import("glfw/glfw.zig");
 const Key = GLFW.Key;
-
-const GL = @import("glfw/gl.zig");
-const Program = GL.Program;
 
 const vertices = [_]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
 const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
@@ -37,6 +35,9 @@ pub fn main() !void {
 
     const program = try GL.program(alloc, "res/shader.vs", "res/shader.fs");
     defer program.deinit();
+
+    const texture = GL.texture();
+    defer texture.deinit();
 
     while (!window.is_close()) {
         while (queue.readItem()) |e| {

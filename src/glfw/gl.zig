@@ -6,6 +6,7 @@ pub const VAO = @import("vao.zig");
 pub const VBO = @import("vbo.zig");
 pub const Program = @import("program.zig");
 pub const Shader = @import("shader.zig");
+pub const Texture = @import("texture.zig");
 
 const Color = struct {
     r: f32 = 0,
@@ -53,4 +54,8 @@ pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Prog
     defer fs.deinit();
 
     return try Program.init(vs, fs);
+}
+
+pub fn texture() Texture {
+    return Texture.init();
 }
