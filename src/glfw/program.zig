@@ -1,8 +1,8 @@
+const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const GL = @import("gl.zig");
-const Shader = GL.Shader;
-const c = GL.c;
+
+const Shader = @import("shader.zig");
 
 const Param = enum(u16) {
     DELETE = c.GL_DELETE_STATUS,
@@ -38,16 +38,6 @@ pub fn init(vs: Shader, fs: Shader) !Program {
     };
 
     return program;
-}
-
-pub fn init_path(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
-    var vs = try GL.Shader.init_path(alloc, .VS, vs_path);
-    defer vs.deinit();
-
-    var fs = try GL.Shader.init_path(alloc, .FS, fs_path);
-    defer fs.deinit();
-
-    return try Program.init(vs, fs);
 }
 
 pub fn deinit(self: *const Program) void {

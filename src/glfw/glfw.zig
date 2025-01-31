@@ -1,23 +1,14 @@
+const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 pub const ImGui = @import("imgui.zig");
 pub const Window = @import("window.zig");
-pub const c = @cImport({
-    @cInclude("GLFW/glfw3.h");
-
-    @cDefine("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", "");
-    @cDefine("CIMGUI_USE_GLFW", "");
-    @cDefine("CIMGUI_USE_OPENGL3", "");
-    @cInclude("cimgui.h");
-    @cInclude("cimgui_impl.h");
-});
-
-const GLFW = @This();
 
 pub fn Fifo(comptime T: type) type {
     return std.fifo.LinearFifo(T, .Dynamic);
 }
+pub const Queue = Fifo(Event);
 
 pub const Action = enum(u8) {
     PRESS = c.GLFW_PRESS,

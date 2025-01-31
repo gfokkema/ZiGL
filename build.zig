@@ -6,14 +6,20 @@ const Options = struct {
     o: std.builtin.OptimizeMode,
 };
 
-pub fn build_exe(b: *std.Build, o: Options) void {
-    const exe = b.addExecutable(.{
-        .name = "main",
-        .root_source_file = b.path("src/main.zig"),
-        .target = o.t,
+pub fn build_c(b: *std.Build, o: Options) *std.Build.Module {
+    const c = b.addModule("c", .{
         .optimize = o.o,
+        .target = o.t,
+        .link_libc = true,
+        .link_libcpp = true,
+        .root_source_file = b.path("src/c.zig"),
     });
-    exe.addCSourceFiles(.{
+    c.addCMacro("IMGUI_IMPL_API", "extern \"C\"");
+    c.addIncludePath(b.path("cimgui"));
+    c.addIncludePath(b.path("cimgui/generator/output"));
+    c.addIncludePath(b.path("cimgui/imgui/backends"));
+    c.addIncludePath(b.path("cimgui/imgui"));
+    c.addCSourceFiles(.{
         .files = &.{
             "cimgui/cimgui.cpp",
             "cimgui/imgui/imgui.cpp",
@@ -25,43 +31,51 @@ pub fn build_exe(b: *std.Build, o: Options) void {
             "cimgui/imgui/backends/imgui_impl_opengl3.cpp",
         },
     });
-    exe.addIncludePath(b.path("cimgui"));
-    exe.addIncludePath(b.path("cimgui/generator/output"));
-    exe.addIncludePath(b.path("cimgui/imgui/backends"));
-    exe.addIncludePath(b.path("cimgui/imgui"));
-    exe.defineCMacro("IMGUI_IMPL_API", "extern \"C\"");
-
-    exe.linkLibC();
-    exe.linkLibCpp();
-    exe.linkSystemLibrary("epoxy");
-    exe.linkSystemLibrary("glfw");
-    exe.linkSystemLibrary("imgui");
-    b.installArtifact(exe);
+    c.linkSystemLibrary("epoxy", .{});
+    c.linkSystemLibrary("glfw", .{});
+    return c;
 }
 
-pub fn build_gtk(b: *std.Build, o: Options) void {
+pub fn build_exe(b: *std.Build, o: Options) *std.Build.Step.Compile {
+    return b.addExecutable(.{
+        .name = "main",
+        .root_source_file = b.path("src/main.zig"),
+        .target = o.t,
+        .optimize = o.o,
+    });
+}
+
+pub fn build_gtk(b: *std.Build, o: Options) *std.Build.Step.Compile {
     const gobject = b.dependency("gobject", .{
         .target = o.t,
         .optimize = o.o,
     });
 
-    const gtk_exe = b.addExecutable(.{
+    const exe = b.addExecutable(.{
         .name = "gtk",
         .root_source_file = b.path("src/gtk.zig"),
         .target = o.t,
         .optimize = o.o,
     });
-    gtk_exe.linkLibC();
-    gtk_exe.linkSystemLibrary("epoxy");
-    gtk_exe.root_module.addImport("glib", gobject.module("glib2"));
-    gtk_exe.root_module.addImport("gobject", gobject.module("gobject2"));
-    gtk_exe.root_module.addImport("gio", gobject.module("gio2"));
-    gtk_exe.root_module.addImport("cairo", gobject.module("cairo1"));
-    gtk_exe.root_module.addImport("pango", gobject.module("pango1"));
-    gtk_exe.root_module.addImport("pangocairo", gobject.module("pangocairo1"));
-    gtk_exe.root_module.addImport("gdk", gobject.module("gdk4"));
-    gtk_exe.root_module.addImport("gtk", gobject.module("gtk4"));
-    b.installArtifact(gtk_exe);
+    exe.linkLibC();
+    exe.root_module.addImport("glib", gobject.module("glib2"));
+    exe.root_module.addImport("gobject", gobject.module("gobject2"));
+    exe.root_module.addImport("gio", gobject.module("gio2"));
+    exe.root_module.addImport("cairo", gobject.module("cairo1"));
+    exe.root_module.addImport("pango", gobject.module("pango1"));
+    exe.root_module.addImport("pangocairo", gobject.module("pangocairo1"));
+    exe.root_module.addImport("gdk", gobject.module("gdk4"));
+    exe.root_module.addImport("gtk", gobject.module("gtk4"));
+    return exe;
+}
+
+pub fn build_glfw(b: *std.Build, o: Options) *std.Build.Step.Compile {
+    return b.addExecutable(.{
+        .name = "glfw",
+        .root_source_file = b.path("src/glfw.zig"),
+        .target = o.t,
+        .optimize = o.o,
+    });
 }
 
 // exe.addIncludePath(.{ .cwd_relative = "/usr/include/SDL3" });
@@ -71,6 +85,23 @@ pub fn build(b: *std.Build) void {
         .t = b.standardTargetOptions(.{}),
         .o = b.standardOptimizeOption(.{}),
     };
-    build_exe(b, opt);
-    build_gtk(b, opt);
+
+    const c = build_c(b, opt);
+
+    const exe = build_exe(b, opt);
+    exe.root_module.addImport("c", c);
+    b.installArtifact(exe);
+
+    const glfw_exe = build_glfw(b, opt);
+    glfw_exe.root_module.addImport("c", c);
+    b.installArtifact(glfw_exe);
+
+    const run_cmd = b.addRunArtifact(glfw_exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
 }

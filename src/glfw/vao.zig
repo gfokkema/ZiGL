@@ -1,8 +1,6 @@
-const GL = @import("gl.zig");
-const c = GL.c;
-
-const VAO = @This();
+const c = @import("c");
 const VBO = @import("vbo.zig");
+const VAO = @This();
 
 handle: c_uint,
 
