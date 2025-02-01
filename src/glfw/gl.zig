@@ -43,7 +43,7 @@ pub fn clear() void {
 }
 
 pub fn draw(mode: DrawMode) void {
-    c.glDrawArrays(@intFromEnum(mode), 0, 3);
+    c.glDrawArrays(@intFromEnum(mode), 0, 6);
 }
 
 pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
