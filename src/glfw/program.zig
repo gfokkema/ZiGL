@@ -44,6 +44,26 @@ pub fn deinit(self: *const Program) void {
     c.glDeleteProgram(self.handle);
 }
 
+pub fn get(self: *const Program, param: Param) u31 {
+    var retval: c_int = undefined;
+    c.glGetProgramiv(self.handle, @intFromEnum(param), &retval);
+    return @intCast(retval);
+}
+
+pub fn attribs(self: *const Program) void {
+    const count = self.get(.ACTIVE_ATTRS);
+    std.debug.print("attrs: {}\n", .{count});
+
+    var len: c_int = undefined;
+    var attr_size: c_int = undefined;
+    var attr_type: c_uint = undefined;
+    var buf: [4096]u8 = std.mem.zeroes([4096]u8);
+    for (0..count) |i| {
+        c.glGetActiveAttrib(self.handle, @intCast(i), buf.len, &len, &attr_size, &attr_type, @ptrCast(&buf));
+        std.debug.print("  {d}: {s}\n", .{ i, buf[0..@intCast(len)] });
+    }
+}
+
 pub fn attach(self: *const Program, shader: *const Shader) void {
     c.glAttachShader(self.handle, shader.handle);
 }

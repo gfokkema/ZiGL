@@ -27,6 +27,7 @@ pub fn attrib(
     vbo: *const VBO,
     idx: usize,
     elems: usize,
+    stride: usize,
 ) void {
     self.bind();
     defer self.unbind();
@@ -34,13 +35,13 @@ pub fn attrib(
     vbo.bind();
     defer vbo.unbind();
 
+    c.glEnableVertexAttribArray(@truncate(idx));
     c.glVertexAttribPointer(
         @truncate(idx),
         @as(c_int, @intCast(elems)),
         c.GL_FLOAT, // type
         c.GL_FALSE, // normalized
-        3 * @sizeOf(f32), // stride
+        @intCast(stride), // stride
         null, // offset
     );
-    c.glEnableVertexAttribArray(@truncate(idx));
 }

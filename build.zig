@@ -88,9 +88,9 @@ pub fn build(b: *std.Build) void {
 
     const c = build_c(b, opt);
 
-    const exe = build_exe(b, opt);
-    exe.root_module.addImport("c", c);
-    b.installArtifact(exe);
+    // const exe = build_exe(b, opt);
+    // exe.root_module.addImport("c", c);
+    // b.installArtifact(exe);
 
     const glfw_exe = build_glfw(b, opt);
     glfw_exe.root_module.addImport("c", c);
