@@ -78,8 +78,6 @@ pub fn build_glfw(b: *std.Build, o: Options) *std.Build.Step.Compile {
     });
 }
 
-// exe.addIncludePath(.{ .cwd_relative = "/usr/include/SDL3" });
-// exe.linkSystemLibrary("SDL3");
 pub fn build(b: *std.Build) void {
     const opt = .{
         .t = b.standardTargetOptions(.{}),
@@ -93,6 +91,8 @@ pub fn build(b: *std.Build) void {
     // b.installArtifact(exe);
 
     const glfw_exe = build_glfw(b, opt);
+    glfw_exe.addIncludePath(b.path("stb"));
+    glfw_exe.addCSourceFile(.{ .file = b.path("src/stb.c") });
     glfw_exe.root_module.addImport("c", c);
     b.installArtifact(glfw_exe);
 

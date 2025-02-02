@@ -53,7 +53,12 @@ pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Prog
     var fs = try Shader.init_path(alloc, .FS, fs_path);
     defer fs.deinit();
 
-    return try Program.init(vs, fs);
+    var p = try Program.init();
+    p.link(vs, fs) catch |e| {
+        p.log();
+        std.debug.panic("Program: {any}\n", .{e});
+    };
+    return p;
 }
 
 pub fn texture() Texture {

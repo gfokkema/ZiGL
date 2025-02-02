@@ -6,6 +6,7 @@ const Check = std.heap.Check;
 const GL = @import("glfw/gl.zig");
 const GLFW = @import("glfw/glfw.zig");
 const Key = GLFW.Key;
+const Image = @import("glfw/image.zig");
 
 fn Vec2(T: type) type {
     return packed struct {
@@ -26,40 +27,37 @@ fn Vec3(T: type) type {
         }
     };
 }
-fn Vertex(T: type) type {
-    return packed struct {
-        pos: Vec3(T),
-        tex: Vec2(T),
-    };
-}
+const Vertex = packed struct {
+    pos: Vec3(f32),
+    tex: Vec2(f32),
+};
 
-const vertices = [_]Vertex(f32){
+const vertices = [_]Vertex{
     .{
-        .pos = Vec3(f32).init(-0.5, -0.5, 0),
+        .pos = Vec3(f32).init(0, 0, 0),
         .tex = Vec2(f32).init(0, 0),
     },
     .{
-        .pos = Vec3(f32).init(-0.5, 1, 0),
+        .pos = Vec3(f32).init(0, 1, 0),
         .tex = Vec2(f32).init(0, 1),
     },
     .{
-        .pos = Vec3(f32).init(0.5, 1, 0),
+        .pos = Vec3(f32).init(1, 1, 0),
         .tex = Vec2(f32).init(1, 1),
     },
     .{
-        .pos = Vec3(f32).init(-0.5, -0.5, 0),
+        .pos = Vec3(f32).init(0, 0, 0),
         .tex = Vec2(f32).init(0, 0),
     },
     .{
-        .pos = Vec3(f32).init(0.5, 1, 0),
+        .pos = Vec3(f32).init(1, 1, 0),
         .tex = Vec2(f32).init(1, 1),
     },
     .{
-        .pos = Vec3(f32).init(0.5, -0.5, 0),
+        .pos = Vec3(f32).init(1, 0, 0),
         .tex = Vec2(f32).init(1, 0),
     },
 };
-const indices = [_]u32{ 0, 1, 3, 1, 2, 3 };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -72,8 +70,7 @@ pub fn main() !void {
     try GLFW.init();
     defer GLFW.deinit();
 
-    var window: GLFW.Window = undefined;
-    try GLFW.Window.init(&window, &queue, .{});
+    var window = try GLFW.Window.init(alloc, &queue, .{});
     defer window.deinit();
 
     const vao = GL.VAO.init();
@@ -81,9 +78,9 @@ pub fn main() !void {
     const vbo = GL.VBO.init(.Array);
     defer vbo.deinit();
 
-    vao.attrib(&vbo, 0, 3, @sizeOf(Vertex(f32)));
-    vao.attrib(&vbo, 1, 2, @sizeOf(Vertex(f32)));
-    vbo.upload(Vertex(f32), &vertices);
+    vao.attrib(&vbo, 0, 3, @sizeOf(Vertex));
+    vao.attrib(&vbo, 1, 2, @sizeOf(Vertex));
+    vbo.upload(Vertex, &vertices);
 
     const program = try GL.program(
         alloc,
@@ -91,12 +88,16 @@ pub fn main() !void {
         "res/texture.fs",
     );
     defer program.deinit();
+    program.attribs();
+    program.uniforms();
+
+    const image = Image.init("res/debug_texture.jpg");
+    defer image.deinit();
 
     const texture = GL.texture();
     defer texture.deinit();
-
-    program.attribs();
-    std.debug.print("uniforms: {}\n", .{program.get(.ACTIVE_UNIFORMS)});
+    texture.bind(.GL_TEXTURE_2D);
+    texture.upload(.GL_TEXTURE_2D, 0, image);
 
     while (!window.is_close()) {
         while (queue.readItem()) |e| {
@@ -118,6 +119,7 @@ pub fn main() !void {
         GL.clearColor(.{});
         GL.clear();
         program.use();
+        texture.bind(.GL_TEXTURE_2D);
         vao.bind();
         GL.draw(.GL_TRIANGLES);
         vao.unbind();

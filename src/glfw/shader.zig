@@ -25,23 +25,24 @@ const Shader = @This();
 handle: c_uint,
 t: Type,
 
-pub fn init(alloc: Allocator, t: Type, src: []const u8) !Shader {
-    const handle = c.glCreateShader(@intFromEnum(t));
-    errdefer c.glDeleteShader(handle);
-
-    const shader: Shader = .{ .handle = handle, .t = t };
-    shader.compile(src) catch |e| {
-        try shader.log(alloc);
-        std.debug.panic("{any}", .{e});
+pub fn init(t: Type) Shader {
+    return .{
+        .handle = c.glCreateShader(@intFromEnum(t)),
+        .t = t,
     };
-
-    return shader;
 }
 
 pub fn init_path(alloc: Allocator, t: Type, path: []const u8) !Shader {
+    const shader = Shader.init(t);
+    errdefer shader.deinit();
+
     var buf: [512]u8 = undefined;
     const src = try std.fs.cwd().readFile(path, &buf);
-    return Shader.init(alloc, t, src);
+    shader.compile(src) catch |e| {
+        try shader.log(alloc);
+        std.debug.panic("Shader: {any}", .{e});
+    };
+    return shader;
 }
 
 pub fn deinit(self: *const Shader) void {
