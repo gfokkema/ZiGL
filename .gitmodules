@@ -6,3 +6,6 @@
 	path = gobject
 	url = git@github.com:ianprime0509/zig-gobject.git
 	branch = main
+[submodule "stb"]
+	path = stb
+	url = git@github.com:nothings/stb.git

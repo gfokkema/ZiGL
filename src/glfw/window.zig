@@ -10,6 +10,7 @@ const ImGui = GLFW.ImGui;
 
 const Window = @This();
 
+alloc: Allocator,
 gui: ImGui = undefined,
 queue: *GLFW.Queue = undefined,
 window: *c.GLFWwindow = undefined,
@@ -18,7 +19,7 @@ const WindowArgs = struct {
     width: c_int = 1280,
     height: c_int = 720,
 };
-pub fn init(self: *Window, queue: *GLFW.Fifo(Event), args: WindowArgs) !void {
+pub fn init(alloc: Allocator, queue: *GLFW.Fifo(Event), args: WindowArgs) !*Window {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -33,21 +34,25 @@ pub fn init(self: *Window, queue: *GLFW.Fifo(Event), args: WindowArgs) !void {
     c.glfwMakeContextCurrent(window);
     c.glfwSwapInterval(1);
 
+    const self = try alloc.create(Window);
     c.glfwSetWindowUserPointer(window, self);
     _ = c.glfwSetKeyCallback(window, key_callback);
     _ = c.glfwSetMouseButtonCallback(window, mouse_callback);
     _ = c.glfwSetFramebufferSizeCallback(window, resize_callback);
 
     self.* = .{
+        .alloc = alloc,
         .gui = try ImGui.init(window),
         .queue = queue,
         .window = window,
     };
+    return self;
 }
 
 pub fn deinit(self: *Window) void {
     self.gui.deinit();
-    c.glfwDestroyWindow(self.window);
+    self.destroy();
+    self.alloc.destroy(self);
 }
 
 pub fn is_active(self: *Window) bool {
@@ -73,6 +78,10 @@ pub fn activate(self: *Window) void {
 
 pub fn deactivate(self: *Window) void {
     if (self.is_active()) c.glfwMakeContextCurrent(null);
+}
+
+pub fn destroy(self: *Window) void {
+    c.glfwDestroyWindow(self.window);
 }
 
 pub fn render(self: *Window) void {

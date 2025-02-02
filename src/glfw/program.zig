@@ -25,19 +25,8 @@ const Program = @This();
 
 handle: c_uint,
 
-pub fn init(vs: Shader, fs: Shader) !Program {
-    const handle = c.glCreateProgram();
-    errdefer c.glDeleteProgram(handle);
-
-    const program: Program = .{ .handle = handle };
-    program.attach(&vs);
-    program.attach(&fs);
-    program.link() catch |e| {
-        program.log();
-        std.debug.panic("{any}", .{e});
-    };
-
-    return program;
+pub fn init() !Program {
+    return .{ .handle = c.glCreateProgram() };
 }
 
 pub fn deinit(self: *const Program) void {
@@ -50,25 +39,13 @@ pub fn get(self: *const Program, param: Param) u31 {
     return @intCast(retval);
 }
 
-pub fn attribs(self: *const Program) void {
-    const count = self.get(.ACTIVE_ATTRS);
-    std.debug.print("attrs: {}\n", .{count});
-
-    var len: c_int = undefined;
-    var attr_size: c_int = undefined;
-    var attr_type: c_uint = undefined;
-    var buf: [4096]u8 = std.mem.zeroes([4096]u8);
-    for (0..count) |i| {
-        c.glGetActiveAttrib(self.handle, @intCast(i), buf.len, &len, &attr_size, &attr_type, @ptrCast(&buf));
-        std.debug.print("  {d}: {s}\n", .{ i, buf[0..@intCast(len)] });
-    }
-}
-
 pub fn attach(self: *const Program, shader: *const Shader) void {
     c.glAttachShader(self.handle, shader.handle);
 }
 
-pub fn link(self: *const Program) !void {
+pub fn link(self: *const Program, vs: Shader, fs: Shader) !void {
+    self.attach(&vs);
+    self.attach(&fs);
     c.glLinkProgram(self.handle);
 
     var success: c_int = undefined;
@@ -87,6 +64,34 @@ pub fn log(self: *const Program) void {
         @ptrCast(&logbuf),
     );
     std.debug.print("program:\n{s}", .{logbuf});
+}
+
+pub fn attribs(self: *const Program) void {
+    const count = self.get(.ACTIVE_ATTRS);
+    std.debug.print("attrs: {}\n", .{count});
+
+    var len: c_int = undefined;
+    var attr_size: c_int = undefined;
+    var attr_type: c_uint = undefined;
+    var buf: [4096]u8 = std.mem.zeroes([4096]u8);
+    for (0..count) |i| {
+        c.glGetActiveAttrib(self.handle, @intCast(i), buf.len, &len, &attr_size, &attr_type, @ptrCast(&buf));
+        std.debug.print("  {d}: {s}\n", .{ i, buf[0..@intCast(len)] });
+    }
+}
+
+pub fn uniforms(self: *const Program) void {
+    const count = self.get(.ACTIVE_UNIFORMS);
+    std.debug.print("uniforms: {}\n", .{count});
+
+    var len: c_int = undefined;
+    var uni_size: c_int = undefined;
+    var uni_type: c_uint = undefined;
+    var buf: [4096]u8 = std.mem.zeroes([4096]u8);
+    for (0..count) |i| {
+        c.glGetActiveUniform(self.handle, @intCast(i), buf.len, &len, &uni_size, &uni_type, @ptrCast(&buf));
+        std.debug.print("  {d}: {s}\n", .{ i, buf[0..@intCast(len)] });
+    }
 }
 
 pub fn use(self: *const Program) void {
