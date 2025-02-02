@@ -8,55 +8,21 @@ const GLFW = @import("glfw/glfw.zig");
 const Key = GLFW.Key;
 const Image = @import("glfw/image.zig");
 
-fn Vec2(T: type) type {
-    return packed struct {
-        x: T,
-        y: T,
-        fn init(x: T, y: T) Vec2(T) {
-            return .{ .x = x, .y = y };
-        }
-    };
-}
-fn Vec3(T: type) type {
-    return packed struct {
-        x: T,
-        y: T,
-        z: T,
-        fn init(x: T, y: T, z: T) Vec3(T) {
-            return .{ .x = x, .y = y, .z = z };
-        }
-    };
-}
+const Vec2 = @Vector(2, f32);
+const Vec3 = @Vector(3, f32);
+
 const Vertex = packed struct {
-    pos: Vec3(f32),
-    tex: Vec2(f32),
+    pos: Vec3,
+    tex: Vec2,
 };
 
 const vertices = [_]Vertex{
-    .{
-        .pos = Vec3(f32).init(0, 0, 0),
-        .tex = Vec2(f32).init(0, 0),
-    },
-    .{
-        .pos = Vec3(f32).init(0, 1, 0),
-        .tex = Vec2(f32).init(0, 1),
-    },
-    .{
-        .pos = Vec3(f32).init(1, 1, 0),
-        .tex = Vec2(f32).init(1, 1),
-    },
-    .{
-        .pos = Vec3(f32).init(0, 0, 0),
-        .tex = Vec2(f32).init(0, 0),
-    },
-    .{
-        .pos = Vec3(f32).init(1, 1, 0),
-        .tex = Vec2(f32).init(1, 1),
-    },
-    .{
-        .pos = Vec3(f32).init(1, 0, 0),
-        .tex = Vec2(f32).init(1, 0),
-    },
+    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
+    .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
+    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
+    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
+    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
+    .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
 };
 
 pub fn main() !void {
@@ -78,8 +44,8 @@ pub fn main() !void {
     const vbo = GL.VBO.init(.Array);
     defer vbo.deinit();
 
-    vao.attrib(&vbo, 0, 3, @sizeOf(Vertex));
-    vao.attrib(&vbo, 1, 2, @sizeOf(Vertex));
+    vao.attrib(&vbo, 0, 3, @sizeOf(Vertex), 0);
+    vao.attrib(&vbo, 1, 2, @sizeOf(Vertex), 3 * @sizeOf(f32));
     vbo.upload(Vertex, &vertices);
 
     const program = try GL.program(
