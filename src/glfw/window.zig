@@ -34,6 +34,11 @@ pub fn init(alloc: Allocator, queue: *GLFW.Fifo(Event), args: WindowArgs) !*Wind
     c.glfwMakeContextCurrent(window);
     c.glfwSwapInterval(1);
 
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    c.glfwGetFramebufferSize(window, &width, &height);
+    c.glViewport(0, 0, width, height);
+
     const self = try alloc.create(Window);
     c.glfwSetWindowUserPointer(window, self);
     _ = c.glfwSetKeyCallback(window, key_callback);

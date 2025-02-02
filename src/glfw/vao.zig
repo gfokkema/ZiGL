@@ -28,6 +28,7 @@ pub fn attrib(
     idx: usize,
     elems: usize,
     stride: usize,
+    offset: usize,
 ) void {
     self.bind();
     defer self.unbind();
@@ -42,6 +43,6 @@ pub fn attrib(
         c.GL_FLOAT, // type
         c.GL_FALSE, // normalized
         @intCast(stride), // stride
-        null, // offset
+        @ptrFromInt(offset), // offset
     );
 }
