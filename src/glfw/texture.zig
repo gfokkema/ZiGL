@@ -2,8 +2,10 @@ const c = @import("c");
 const Image = @import("image.zig");
 const Texture = @This();
 
+const zlm = @import("zlm");
+
 const Target = enum(u16) {
-    GL_TEXTURE_2D = c.GL_TEXTURE_2D,
+    Texture2D = c.GL_TEXTURE_2D,
     _,
 };
 const Level = u8;

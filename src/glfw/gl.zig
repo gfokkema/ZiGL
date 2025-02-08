@@ -15,15 +15,43 @@ const Color = struct {
     a: f32 = 0,
 };
 
+pub const Error = enum(u16) {
+    NoError = c.GL_NO_ERROR,
+    InvalidEnum = c.GL_INVALID_ENUM,
+    InvalidValue = c.GL_INVALID_VALUE,
+    InvalidOp = c.GL_INVALID_OPERATION,
+    InvalidFBOp = c.GL_INVALID_FRAMEBUFFER_OPERATION,
+    OOM = c.GL_OUT_OF_MEMORY,
+    StackUnderFlow = c.GL_STACK_UNDERFLOW,
+    StackOverFlow = c.GL_STACK_OVERFLOW,
+};
+
+pub const Type = enum(u16) {
+    u32 = c.GL_UNSIGNED_INT,
+    u16 = c.GL_UNSIGNED_SHORT,
+    u8 = c.GL_UNSIGNED_BYTE,
+    f32 = c.GL_FLOAT,
+
+    pub fn as(T: type) Type {
+        return switch (T) {
+            u32 => Type.u32,
+            u16 => Type.u16,
+            u8 => Type.u8,
+            f32 => Type.f32,
+            else => @compileError("Invalid type " ++ @typeInfo(T)),
+        };
+    }
+};
+
 pub const DrawMode = enum(u16) {
-    GL_POINTS = c.GL_POINTS,
-    GL_TRIANGLES = c.GL_TRIANGLES,
+    Points = c.GL_POINTS,
+    Triangles = c.GL_TRIANGLES,
 };
 
 pub const ClearMode = enum(u16) {
-    GL_COLOR = c.GL_COLOR_BUFFER_BIT,
-    GL_DEPTH = c.GL_DEPTH_BUFFER_BIT,
-    GL_STENCIL = c.GL_STENCIL_BUFFER_BIT,
+    Color = c.GL_COLOR_BUFFER_BIT,
+    Depth = c.GL_DEPTH_BUFFER_BIT,
+    Stencil = c.GL_STENCIL_BUFFER_BIT,
 };
 
 const State = struct {
@@ -39,11 +67,30 @@ pub fn clearColor(color: Color) void {
 }
 
 pub fn clear() void {
-    c.glClear(@intFromEnum(ClearMode.GL_COLOR));
+    c.glClear(@intFromEnum(ClearMode.Color));
 }
 
 pub fn draw(mode: DrawMode) void {
     c.glDrawArrays(@intFromEnum(mode), 0, 6);
+}
+
+pub fn drawElements(
+    T: type,
+    mode: DrawMode,
+    count: usize,
+    offs: usize,
+) void {
+    c.glDrawElements(
+        @intFromEnum(mode),
+        @intCast(count),
+        @intFromEnum(Type.as(T)),
+        @ptrFromInt(offs),
+    );
+}
+
+pub fn getError() !void {
+    const err: Error = @enumFromInt(c.glGetError());
+    std.debug.print("ERROR: {any}\n", .{err});
 }
 
 pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
