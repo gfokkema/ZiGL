@@ -1,5 +1,6 @@
 const c = @import("c");
 const std = @import("std");
+const zobj = @import("zobj");
 const Allocator = std.mem.Allocator;
 const Check = std.heap.Check;
 
@@ -16,14 +17,14 @@ const Vertex = packed struct {
     tex: Vec2,
 };
 
-const vertices = [_]Vertex{
-    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
-    .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
-    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
-    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
-    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
-    .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
-};
+// const vertices = [_]Vertex{
+//     .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
+//     .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
+//     .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
+//     .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
+//     .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
+//     .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
+// };
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -39,19 +40,33 @@ pub fn main() !void {
     var window = try GLFW.Window.init(alloc, &queue, .{});
     defer window.deinit();
 
+    var model = try zobj.parseObj(alloc, @embedFile("res/cube.obj"));
+    defer model.deinit(alloc);
+    var material = try zobj.parseMtl(alloc, @embedFile("res/cube.mtl"));
+    defer material.deinit(alloc);
+
     const vao = GL.VAO.init();
     defer vao.deinit();
     const vbo = GL.VBO.init(.Array);
     defer vbo.deinit();
+    const tbo = GL.VBO.init(.Array);
+    defer tbo.deinit();
+    const ibo = GL.VBO.init(.Element);
+    defer ibo.deinit();
 
-    vao.attrib(&vbo, 0, 3, @sizeOf(Vertex), 0);
-    vao.attrib(&vbo, 1, 2, @sizeOf(Vertex), 3 * @sizeOf(f32));
-    vbo.upload(Vertex, &vertices);
+    vao.attrib(f32, &vbo, 0, 3, 0, 0);
+    vao.attrib(u32, &tbo, 1, 2, 0, 0);
+    vao.attrib(u32, &ibo, 2, 3, 0, 0);
+    vbo.upload(f32, model.vertices);
+    tbo.upload(f32, model.tex_coords);
+    for (model.meshes) |m| {
+        ibo.upload(zobj.Mesh.Index, @constCast(m.indices));
+    }
 
     const program = try GL.program(
         alloc,
-        "res/texture.vs",
-        "res/texture.fs",
+        "res/cube.vs",
+        "res/cube.fs",
     );
     defer program.deinit();
     program.attribs();
@@ -62,8 +77,8 @@ pub fn main() !void {
 
     const texture = GL.texture();
     defer texture.deinit();
-    texture.bind(.GL_TEXTURE_2D);
-    texture.upload(.GL_TEXTURE_2D, 0, image);
+    texture.bind(.Texture2D);
+    texture.upload(.Texture2D, 0, image);
 
     while (!window.is_close()) {
         while (queue.readItem()) |e| {
@@ -84,10 +99,13 @@ pub fn main() !void {
 
         GL.clearColor(.{});
         GL.clear();
+
         program.use();
-        texture.bind(.GL_TEXTURE_2D);
+        texture.bind(.Texture2D);
+
         vao.bind();
-        GL.draw(.GL_TRIANGLES);
+        ibo.bind();
+        GL.drawElements(u32, .Triangles, 3, 0);
         vao.unbind();
 
         window.render();

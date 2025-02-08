@@ -32,7 +32,6 @@ pub fn init(path: []const u8) Image {
         @ptrCast(&params.components),
         stb.STBI_rgb,
     ));
-    std.debug.print("{any}\n", .{image});
 
     return .{
         .image = @ptrCast(image),

@@ -36,48 +36,6 @@ pub fn build_c(b: *std.Build, o: Options) *std.Build.Module {
     return c;
 }
 
-pub fn build_exe(b: *std.Build, o: Options) *std.Build.Step.Compile {
-    return b.addExecutable(.{
-        .name = "main",
-        .root_source_file = b.path("src/main.zig"),
-        .target = o.t,
-        .optimize = o.o,
-    });
-}
-
-pub fn build_gtk(b: *std.Build, o: Options) *std.Build.Step.Compile {
-    const gobject = b.dependency("gobject", .{
-        .target = o.t,
-        .optimize = o.o,
-    });
-
-    const exe = b.addExecutable(.{
-        .name = "gtk",
-        .root_source_file = b.path("src/gtk.zig"),
-        .target = o.t,
-        .optimize = o.o,
-    });
-    exe.linkLibC();
-    exe.root_module.addImport("glib", gobject.module("glib2"));
-    exe.root_module.addImport("gobject", gobject.module("gobject2"));
-    exe.root_module.addImport("gio", gobject.module("gio2"));
-    exe.root_module.addImport("cairo", gobject.module("cairo1"));
-    exe.root_module.addImport("pango", gobject.module("pango1"));
-    exe.root_module.addImport("pangocairo", gobject.module("pangocairo1"));
-    exe.root_module.addImport("gdk", gobject.module("gdk4"));
-    exe.root_module.addImport("gtk", gobject.module("gtk4"));
-    return exe;
-}
-
-pub fn build_glfw(b: *std.Build, o: Options) *std.Build.Step.Compile {
-    return b.addExecutable(.{
-        .name = "glfw",
-        .root_source_file = b.path("src/glfw.zig"),
-        .target = o.t,
-        .optimize = o.o,
-    });
-}
-
 pub fn build(b: *std.Build) void {
     const opt = .{
         .t = b.standardTargetOptions(.{}),
@@ -85,18 +43,27 @@ pub fn build(b: *std.Build) void {
     };
 
     const c = build_c(b, opt);
+    const zlm = b.dependency("zlm", .{});
+    const zobj = b.dependency("zobj", .{});
 
     // const exe = build_exe(b, opt);
     // exe.root_module.addImport("c", c);
     // b.installArtifact(exe);
 
-    const glfw_exe = build_glfw(b, opt);
-    glfw_exe.addIncludePath(b.path("stb"));
-    glfw_exe.addCSourceFile(.{ .file = b.path("src/stb.c") });
-    glfw_exe.root_module.addImport("c", c);
-    b.installArtifact(glfw_exe);
+    const exe = b.addExecutable(.{
+        .name = "glfw",
+        .root_source_file = b.path("src/glfw.zig"),
+        .target = opt.t,
+        .optimize = opt.o,
+    });
+    exe.root_module.addImport("c", c);
+    exe.root_module.addImport("zlm", zlm.module("zlm"));
+    exe.root_module.addImport("zobj", zobj.module("obj"));
+    exe.addIncludePath(b.path("stb"));
+    exe.addCSourceFile(.{ .file = b.path("src/stb.c") });
+    b.installArtifact(exe);
 
-    const run_cmd = b.addRunArtifact(glfw_exe);
+    const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);

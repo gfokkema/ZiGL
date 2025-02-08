@@ -1,4 +1,5 @@
 const c = @import("c");
+const GL = @import("gl.zig");
 const VBO = @import("vbo.zig");
 const VAO = @This();
 
@@ -24,6 +25,7 @@ pub fn unbind(_: *const VAO) void {
 
 pub fn attrib(
     self: *const VAO,
+    T: type,
     vbo: *const VBO,
     idx: usize,
     elems: usize,
@@ -40,7 +42,7 @@ pub fn attrib(
     c.glVertexAttribPointer(
         @truncate(idx),
         @as(c_int, @intCast(elems)),
-        c.GL_FLOAT, // type
+        @intFromEnum(GL.Type.as(T)), // type
         c.GL_FALSE, // normalized
         @intCast(stride), // stride
         @ptrFromInt(offset), // offset
