@@ -1,5 +1,4 @@
 const c = @import("c");
-const VBO = @This();
 
 const Type = enum(u16) {
     Array = c.GL_ARRAY_BUFFER,
@@ -7,35 +6,42 @@ const Type = enum(u16) {
     _,
 };
 
-handle: c_uint,
-vbotype: Type,
+pub const ArrayBuffer = vbo(.Array);
+pub const ElementBuffer = vbo(.Element);
 
-pub fn init(vbotype: Type) VBO {
-    var handle: c_uint = undefined;
-    c.glGenBuffers(1, &handle);
-    return .{ .handle = handle, .vbotype = vbotype };
-}
+pub fn vbo(V: Type) type {
+    return struct {
+        const Self = @This();
 
-pub fn deinit(self: *const VBO) void {
-    c.glDeleteBuffers(1, &self.handle);
-}
+        handle: c_uint,
 
-pub fn bind(self: *const VBO) void {
-    c.glBindBuffer(@intFromEnum(self.vbotype), self.handle);
-}
+        pub fn init() Self {
+            var handle: c_uint = undefined;
+            c.glGenBuffers(1, &handle);
+            return .{ .handle = handle };
+        }
 
-pub fn unbind(self: *const VBO) void {
-    c.glBindBuffer(@intFromEnum(self.vbotype), 0);
-}
+        pub fn deinit(self: *const Self) void {
+            c.glDeleteBuffers(1, &self.handle);
+        }
 
-pub fn upload(self: *const VBO, T: type, data: []const T) void {
-    self.bind();
-    defer self.unbind();
+        pub fn bind(self: *const Self) void {
+            c.glBindBuffer(@intFromEnum(V), self.handle);
+        }
 
-    c.glBufferData(
-        @intFromEnum(self.vbotype),
-        @intCast(data.len * @sizeOf(T)),
-        data.ptr,
-        c.GL_STATIC_DRAW,
-    );
+        pub fn unbind(_: *const Self) void {
+            c.glBindBuffer(@intFromEnum(V), 0);
+        }
+
+        pub fn upload(self: *const Self, T: type, data: []const T) void {
+            self.bind();
+            defer self.unbind();
+            c.glBufferData(
+                @intFromEnum(V),
+                @intCast(data.len * @sizeOf(T)),
+                data.ptr,
+                c.GL_STATIC_DRAW,
+            );
+        }
+    };
 }
