@@ -47,16 +47,16 @@ pub fn main() !void {
 
     const vao = GL.VAO.init();
     defer vao.deinit();
-    const vbo = GL.VBO.init(.Array);
+    const vbo = GL.VBO.ArrayBuffer.init();
     defer vbo.deinit();
-    const tbo = GL.VBO.init(.Array);
+    const tbo = GL.VBO.ArrayBuffer.init();
     defer tbo.deinit();
-    const ibo = GL.VBO.init(.Element);
+    const ibo = GL.VBO.ElementBuffer.init();
     defer ibo.deinit();
 
-    vao.attrib(f32, &vbo, 0, 3, 0, 0);
-    vao.attrib(u32, &tbo, 1, 2, 0, 0);
-    vao.attrib(u32, &ibo, 2, 3, 0, 0);
+    vao.attrib(GL.VBO.ArrayBuffer, f32, &vbo, 0, 3, 0, 0);
+    vao.attrib(GL.VBO.ArrayBuffer, u32, &tbo, 1, 2, 0, 0);
+    vao.attrib(GL.VBO.ElementBuffer, u32, &ibo, 2, 3, 0, 0);
     vbo.upload(f32, model.vertices);
     tbo.upload(f32, model.tex_coords);
     for (model.meshes) |m| {

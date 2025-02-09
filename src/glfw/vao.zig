@@ -25,8 +25,9 @@ pub fn unbind(_: *const VAO) void {
 
 pub fn attrib(
     self: *const VAO,
+    V: type,
     T: type,
-    vbo: *const VBO,
+    vbo: *const V,
     idx: usize,
     elems: usize,
     stride: usize,
