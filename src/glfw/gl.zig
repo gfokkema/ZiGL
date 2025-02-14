@@ -34,11 +34,11 @@ pub const Type = enum(u16) {
 
     pub fn as(T: type) Type {
         return switch (T) {
-            u32 => Type.u32,
-            u16 => Type.u16,
             u8 => Type.u8,
+            u16 => Type.u16,
+            u32 => Type.u32,
             f32 => Type.f32,
-            else => @compileError("Invalid type " ++ @typeInfo(T)),
+            else => @compileError("Invalid type " ++ @tagName(@typeInfo(T))),
         };
     }
 };
@@ -75,9 +75,9 @@ pub fn draw(mode: DrawMode) void {
 }
 
 pub fn drawElements(
-    T: type,
     mode: DrawMode,
     count: usize,
+    T: type,
     offs: usize,
 ) void {
     c.glDrawElements(

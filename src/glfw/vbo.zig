@@ -1,4 +1,5 @@
 const c = @import("c");
+const gl = @import("gl.zig");
 
 const Type = enum(u16) {
     Array = c.GL_ARRAY_BUFFER,
@@ -6,10 +7,7 @@ const Type = enum(u16) {
     _,
 };
 
-pub const ArrayBuffer = vbo(.Array);
-pub const ElementBuffer = vbo(.Element);
-
-pub fn vbo(V: Type) type {
+pub fn vbo(V: Type, T: type) type {
     return struct {
         const Self = @This();
 
@@ -33,9 +31,7 @@ pub fn vbo(V: Type) type {
             c.glBindBuffer(@intFromEnum(V), 0);
         }
 
-        pub fn upload(self: *const Self, T: type, data: []const T) void {
-            self.bind();
-            defer self.unbind();
+        pub fn upload(_: *const Self, data: []const T) void {
             c.glBufferData(
                 @intFromEnum(V),
                 @intCast(data.len * @sizeOf(T)),

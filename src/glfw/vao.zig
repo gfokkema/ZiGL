@@ -5,6 +5,8 @@ const VAO = @This();
 
 handle: c_uint,
 
+// fn Attrib(V: type, T: type)
+
 pub fn init() VAO {
     var handle: c_uint = undefined;
     c.glGenVertexArrays(1, &handle);
@@ -24,21 +26,13 @@ pub fn unbind(_: *const VAO) void {
 }
 
 pub fn attrib(
-    self: *const VAO,
-    V: type,
+    _: *const VAO,
     T: type,
-    vbo: *const V,
     idx: usize,
     elems: usize,
     stride: usize,
     offset: usize,
 ) void {
-    self.bind();
-    defer self.unbind();
-
-    vbo.bind();
-    defer vbo.unbind();
-
     c.glEnableVertexAttribArray(@truncate(idx));
     c.glVertexAttribPointer(
         @truncate(idx),

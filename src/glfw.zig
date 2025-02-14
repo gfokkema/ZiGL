@@ -1,5 +1,6 @@
 const c = @import("c");
 const std = @import("std");
+const zlm = @import("zlm");
 const zobj = @import("zobj");
 const Allocator = std.mem.Allocator;
 const Check = std.heap.Check;
@@ -11,20 +12,24 @@ const Image = @import("glfw/image.zig");
 
 const Vec2 = @Vector(2, f32);
 const Vec3 = @Vector(3, f32);
-
-const Vertex = packed struct {
+const Vertex = extern struct {
     pos: Vec3,
     tex: Vec2,
 };
+const ArrayBuffer = GL.VBO.vbo(.Array, Vertex);
+const ElementBuffer = GL.VBO.vbo(.Element, u32);
 
-// const vertices = [_]Vertex{
-//     .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
-//     .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
-//     .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
-//     .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
-//     .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
-//     .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
-// };
+const vertices = [_]Vertex{
+    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
+    .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
+    .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
+    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
+};
+
+const indices = [_]u32{
+    0, 1, 3,
+    0, 3, 2,
+};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -47,21 +52,24 @@ pub fn main() !void {
 
     const vao = GL.VAO.init();
     defer vao.deinit();
-    const vbo = GL.VBO.ArrayBuffer.init();
+    const vbo = ArrayBuffer.init();
     defer vbo.deinit();
-    const tbo = GL.VBO.ArrayBuffer.init();
-    defer tbo.deinit();
-    const ibo = GL.VBO.ElementBuffer.init();
+    const ibo = ElementBuffer.init();
     defer ibo.deinit();
 
-    vao.attrib(GL.VBO.ArrayBuffer, f32, &vbo, 0, 3, 0, 0);
-    vao.attrib(GL.VBO.ArrayBuffer, u32, &tbo, 1, 2, 0, 0);
-    vao.attrib(GL.VBO.ElementBuffer, u32, &ibo, 2, 3, 0, 0);
-    vbo.upload(f32, model.vertices);
-    tbo.upload(f32, model.tex_coords);
-    for (model.meshes) |m| {
-        ibo.upload(zobj.Mesh.Index, @constCast(m.indices));
-    }
+    vao.bind();
+    vbo.bind();
+    vao.attrib(f32, 0, 3, @sizeOf(Vertex), 0);
+    vao.attrib(f32, 1, 2, @sizeOf(Vertex), @sizeOf(Vec3));
+    // vao.attrib(u32, 2, 3, @sizeOf(Vertex), @sizeOf(Vec3) + @sizeOf(Vec2));
+
+    vao.unbind();
+    vbo.upload(&vertices);
+    vbo.unbind();
+
+    ibo.bind();
+    ibo.upload(&indices);
+    ibo.unbind();
 
     const program = try GL.program(
         alloc,
@@ -105,7 +113,7 @@ pub fn main() !void {
 
         vao.bind();
         ibo.bind();
-        GL.drawElements(u32, .Triangles, 3, 0);
+        GL.drawElements(.Triangles, indices.len, u32, 0);
         vao.unbind();
 
         window.render();
