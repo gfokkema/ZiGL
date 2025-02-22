@@ -67,11 +67,18 @@ pub fn clearColor(color: Color) void {
 }
 
 pub fn clear() void {
-    c.glClear(@intFromEnum(ClearMode.Color));
+    c.glClear(@intFromEnum(ClearMode.Color) | @intFromEnum(ClearMode.Depth));
 }
 
-pub fn draw(mode: DrawMode) void {
-    c.glDrawArrays(@intFromEnum(mode), 0, 6);
+pub fn draw(
+    mode: DrawMode,
+    count: usize,
+) void {
+    c.glDrawArrays(
+        @intFromEnum(mode),
+        0,
+        @intCast(count),
+    );
 }
 
 pub fn drawElements(
@@ -108,6 +115,6 @@ pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Prog
     return p;
 }
 
-pub fn texture() Texture {
-    return Texture.init();
+pub fn texture() Texture.Texture2D {
+    return Texture.Texture2D.init();
 }
