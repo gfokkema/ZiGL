@@ -38,6 +38,7 @@ pub fn init(alloc: Allocator, queue: *GLFW.Fifo(Event), args: WindowArgs) !*Wind
     var height: c_int = undefined;
     c.glfwGetFramebufferSize(window, &width, &height);
     c.glViewport(0, 0, width, height);
+    c.glEnable(c.GL_DEPTH_TEST);
 
     const self = try alloc.create(Window);
     c.glfwSetWindowUserPointer(window, self);

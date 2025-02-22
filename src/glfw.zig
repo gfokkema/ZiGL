@@ -15,21 +15,10 @@ const Vec3 = @Vector(3, f32);
 const Vertex = extern struct {
     pos: Vec3,
     tex: Vec2,
+    tex_id: i32 = 0,
 };
 const ArrayBuffer = GL.VBO.vbo(.Array, Vertex);
 const ElementBuffer = GL.VBO.vbo(.Element, u32);
-
-const vertices = [_]Vertex{
-    .{ .pos = .{ -0.5, -0.5, 0 }, .tex = .{ 0, 0 } },
-    .{ .pos = .{ -0.5, 0.5, 0 }, .tex = .{ 0, 1 } },
-    .{ .pos = .{ 0.5, -0.5, 0 }, .tex = .{ 1, 0 } },
-    .{ .pos = .{ 0.5, 0.5, 0 }, .tex = .{ 1, 1 } },
-};
-
-const indices = [_]u32{
-    0, 1, 3,
-    0, 3, 2,
-};
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -49,27 +38,19 @@ pub fn main() !void {
     defer model.deinit(alloc);
     var material = try zobj.parseMtl(alloc, @embedFile("res/cube.mtl"));
     defer material.deinit(alloc);
-
-    const vao = GL.VAO.init();
-    defer vao.deinit();
-    const vbo = ArrayBuffer.init();
-    defer vbo.deinit();
-    const ibo = ElementBuffer.init();
-    defer ibo.deinit();
-
-    vao.bind();
-    vbo.bind();
-    vao.attrib(f32, 0, 3, @sizeOf(Vertex), 0);
-    vao.attrib(f32, 1, 2, @sizeOf(Vertex), @sizeOf(Vec3));
-    // vao.attrib(u32, 2, 3, @sizeOf(Vertex), @sizeOf(Vec3) + @sizeOf(Vec2));
-
-    vao.unbind();
-    vbo.upload(&vertices);
-    vbo.unbind();
-
-    ibo.bind();
-    ibo.upload(&indices);
-    ibo.unbind();
+    var vertices = std.ArrayList(Vertex).init(alloc);
+    defer vertices.deinit();
+    for (model.meshes) |m| {
+        std.debug.print("{any}\n", .{m.name});
+        for (m.indices) |i| {
+            const v: *align(4) Vec3 = @ptrCast(@constCast(&model.vertices[i.vertex.? * 3]));
+            const t: *align(4) Vec2 = @ptrCast(@constCast(&model.tex_coords[i.tex_coord.? * 2]));
+            try vertices.append(.{
+                .pos = v.*,
+                .tex = t.*,
+            });
+        }
+    }
 
     const program = try GL.program(
         alloc,
@@ -80,13 +61,40 @@ pub fn main() !void {
     program.attribs();
     program.uniforms();
 
+    const vao = GL.VAO.init();
+    defer vao.deinit();
+    const vbo = ArrayBuffer.init();
+    defer vbo.deinit();
+
+    vao.bind();
+    vbo.bind();
+    vao.attrib(f32, 0, 3, @sizeOf(Vertex), 0);
+    vao.attrib(f32, 1, 2, @sizeOf(Vertex), @sizeOf(Vec3));
+    vao.attrib(u32, 2, 1, @sizeOf(Vertex), @sizeOf(Vec3) + @sizeOf(Vec2));
+
+    vao.unbind();
+    vbo.upload(vertices.items);
+    vbo.unbind();
+
     const image = Image.init("res/debug_texture.jpg");
     defer image.deinit();
 
     const texture = GL.texture();
     defer texture.deinit();
-    texture.bind(.Texture2D);
-    texture.upload(.Texture2D, 0, image);
+    texture.bind();
+    texture.upload(0, image);
+
+    const mvp = zlm.Mat4.createPerspective(
+        std.math.degreesToRadians(90),
+        1.25,
+        0.1,
+        1000,
+    );
+
+    program.use();
+    const loc = c.glGetUniformLocation(program.handle, "mvp");
+    _ = c.glUniformMatrix4fv(loc, 1, c.GL_FALSE, @ptrCast(&mvp));
+    std.debug.print("loc: {d}, {any}\n", .{ loc, mvp });
 
     while (!window.is_close()) {
         while (queue.readItem()) |e| {
@@ -109,11 +117,10 @@ pub fn main() !void {
         GL.clear();
 
         program.use();
-        texture.bind(.Texture2D);
+        texture.bind();
 
         vao.bind();
-        ibo.bind();
-        GL.drawElements(.Triangles, indices.len, u32, 0);
+        GL.draw(.Triangles, 36);
         vao.unbind();
 
         window.render();
