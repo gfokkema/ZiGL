@@ -2,7 +2,7 @@ const c = @import("c");
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Type = enum(u16) {
+const ShaderType = enum(u16) {
     VS = c.GL_VERTEX_SHADER,
     FS = c.GL_FRAGMENT_SHADER,
 };
@@ -23,16 +23,16 @@ const Param = enum(u16) {
 const Shader = @This();
 
 handle: c_uint,
-t: Type,
+t: ShaderType,
 
-pub fn init(t: Type) Shader {
+pub fn init(t: ShaderType) Shader {
     return .{
         .handle = c.glCreateShader(@intFromEnum(t)),
         .t = t,
     };
 }
 
-pub fn init_path(alloc: Allocator, t: Type, path: []const u8) !Shader {
+pub fn init_path(alloc: Allocator, t: ShaderType, path: []const u8) !Shader {
     const shader = Shader.init(t);
     errdefer shader.deinit();
 

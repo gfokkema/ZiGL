@@ -3,6 +3,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 const Shader = @import("shader.zig");
+const Uniform = @import("uniform.zig");
 
 const Param = enum(u16) {
     DELETE = c.GL_DELETE_STATUS,
@@ -48,15 +49,13 @@ pub fn link(self: *const Program, vs: Shader, fs: Shader) !void {
     self.attach(&fs);
     c.glLinkProgram(self.handle);
 
-    var success: c_int = undefined;
-    c.glGetProgramiv(self.handle, Param.LINK.int(), &success);
+    const success = self.get(.LINK);
     if (success == c.GL_FALSE) return error.FailedLinkingProgram;
 }
 
 pub fn log(self: *const Program) void {
-    var loglen: c_int = undefined;
-    var logbuf: [512]u8 = .{0} ** 512;
-    c.glGetProgramiv(self.handle, Param.LOG_LENGTH.int(), &loglen);
+    var logbuf = std.mem.zeroes([512]u8);
+    const loglen = self.get(.LOG_LENGTH);
     c.glGetProgramInfoLog(
         self.handle,
         loglen,
@@ -86,12 +85,24 @@ pub fn uniforms(self: *const Program) void {
 
     var len: c_int = undefined;
     var uni_size: c_int = undefined;
-    var uni_type: c_uint = undefined;
+    var uni_type: Uniform.UniformType = undefined;
     var buf: [4096]u8 = std.mem.zeroes([4096]u8);
     for (0..count) |i| {
-        c.glGetActiveUniform(self.handle, @intCast(i), buf.len, &len, &uni_size, &uni_type, @ptrCast(&buf));
-        std.debug.print("  {d}: {s}\n", .{ i, buf[0..@intCast(len)] });
+        c.glGetActiveUniform(
+            self.handle,
+            @intCast(i),
+            buf.len,
+            &len,
+            &uni_size,
+            @ptrCast(&uni_type),
+            @ptrCast(&buf),
+        );
+        std.debug.print("  {d}: {s}  ({any})\n", .{ i, buf[0..@intCast(len)], uni_type });
     }
+}
+
+pub fn uniform(self: *Program, name: []const u8, comptime T: Uniform.UniformType) Uniform.Uniform(T) {
+    return Uniform.Uniform(T).init(self, name);
 }
 
 pub fn use(self: *const Program) void {
