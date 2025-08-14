@@ -1,5 +1,5 @@
 .{
-    .name = "zigl",
+    .name = .zemu,
     .version = "0.0.0",
     .paths = .{
         "res",
@@ -21,4 +21,5 @@
             .hash = "12203513bf3fa5045a984aba014afaf152df4b618742bcd37768d3075dafe715a1e1",
         },
     },
+    .fingerprint = 0x9be606761e9fa708,
 }

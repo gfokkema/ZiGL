@@ -4,7 +4,9 @@ const Allocator = std.mem.Allocator;
 
 pub const VAO = @import("vao.zig");
 pub const VBO = @import("vbo.zig");
+pub const Image = @import("image.zig");
 pub const Program = @import("program.zig");
+pub const Uniform = @import("uniform.zig");
 pub const Shader = @import("shader.zig");
 pub const Texture = @import("texture.zig");
 
@@ -26,18 +28,18 @@ pub const Error = enum(u16) {
     StackOverFlow = c.GL_STACK_OVERFLOW,
 };
 
-pub const Type = enum(u16) {
+pub const DataType = enum(u16) {
     u32 = c.GL_UNSIGNED_INT,
     u16 = c.GL_UNSIGNED_SHORT,
     u8 = c.GL_UNSIGNED_BYTE,
     f32 = c.GL_FLOAT,
 
-    pub fn as(T: type) Type {
+    pub fn from(T: type) DataType {
         return switch (T) {
-            u8 => Type.u8,
-            u16 => Type.u16,
-            u32 => Type.u32,
-            f32 => Type.f32,
+            u8 => DataType.u8,
+            u16 => DataType.u16,
+            u32 => DataType.u32,
+            f32 => DataType.f32,
             else => @compileError("Invalid type " ++ @tagName(@typeInfo(T))),
         };
     }
@@ -70,10 +72,7 @@ pub fn clear() void {
     c.glClear(@intFromEnum(ClearMode.Color) | @intFromEnum(ClearMode.Depth));
 }
 
-pub fn draw(
-    mode: DrawMode,
-    count: usize,
-) void {
+pub fn draw(mode: DrawMode, count: usize) void {
     c.glDrawArrays(
         @intFromEnum(mode),
         0,
@@ -81,16 +80,11 @@ pub fn draw(
     );
 }
 
-pub fn drawElements(
-    mode: DrawMode,
-    count: usize,
-    T: type,
-    offs: usize,
-) void {
+pub fn drawElements(mode: DrawMode, count: usize, T: type, offs: usize) void {
     c.glDrawElements(
         @intFromEnum(mode),
         @intCast(count),
-        @intFromEnum(Type.as(T)),
+        @intFromEnum(DataType.from(T)),
         @ptrFromInt(offs),
     );
 }
@@ -112,6 +106,10 @@ pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Prog
         p.log();
         std.debug.panic("Program: {any}\n", .{e});
     };
+
+    p.attribs();
+    p.uniforms();
+
     return p;
 }
 

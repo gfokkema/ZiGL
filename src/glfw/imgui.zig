@@ -1,6 +1,5 @@
 const c = @import("c");
 const std = @import("std");
-const GLFW = @import("glfw.zig");
 
 const ImGui = @This();
 

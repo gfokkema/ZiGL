@@ -2,17 +2,21 @@ const c = @import("c");
 const Image = @import("image.zig");
 const zlm = @import("zlm");
 
-const Type = enum(u16) {
+const TextureType = enum(u16) {
     Texture2D = c.GL_TEXTURE_2D,
     Texture2DArray = c.GL_TEXTURE_2D_ARRAY,
     _,
 };
+const TextureUnit = enum(u16) {
+    UNIT_0 = c.GL_TEXTURE0,
+    UNIT_1 = c.GL_TEXTURE1,
+};
 const Level = u8;
 
-pub const Texture2D = texture(.Texture2D);
-pub const Texture2DArray = texture(.Texture2DArray);
+pub const Texture2D = Texture(.Texture2D);
+pub const Texture2DArray = Texture(.Texture2DArray);
 
-pub fn texture(T: Type) type {
+pub fn Texture(T: TextureType) type {
     return struct {
         const Self = @This();
 
@@ -28,12 +32,13 @@ pub fn texture(T: Type) type {
             c.glDeleteTextures(1, &self.handle);
         }
 
-        pub fn bind(self: *const Self) void {
+        pub fn bind(self: *const Self, U: TextureUnit) void {
+            c.glActiveTexture(@intFromEnum(U));
             c.glBindTexture(@intFromEnum(T), self.handle);
         }
 
         pub fn unbind(_: *const Self) void {
-            c.glBindTexture(0);
+            c.glBindTexture(@intFromEnum(T), 0);
         }
 
         pub fn upload(_: *const Self, level: Level, image: Image) void {

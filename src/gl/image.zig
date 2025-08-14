@@ -1,7 +1,5 @@
+const c = @import("c");
 const std = @import("std");
-const stb = @cImport({
-    @cInclude("stb_image.h");
-});
 
 const Params = struct {
     width: i32 = 0,
@@ -24,14 +22,14 @@ params: Params,
 
 pub fn init(path: []const u8) Image {
     var params = Params{};
-    stb.stbi_set_flip_vertically_on_load(1);
-    const image: *u8 = @ptrCast(stb.stbi_load(
+    c.stbi_set_flip_vertically_on_load(1);
+    const image = c.stbi_load(
         path.ptr,
         &params.width,
         &params.height,
         @ptrCast(&params.components),
-        stb.STBI_rgb,
-    ));
+        c.STBI_rgb,
+    );
 
     return .{
         .image = @ptrCast(image),
@@ -40,5 +38,5 @@ pub fn init(path: []const u8) Image {
 }
 
 pub fn deinit(self: *const Image) void {
-    stb.stbi_image_free(self.image);
+    c.stbi_image_free(self.image);
 }

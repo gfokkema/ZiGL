@@ -1,6 +1,7 @@
 const c = @import("c");
 const GL = @import("gl.zig");
 const VBO = @import("vbo.zig");
+
 const VAO = @This();
 
 handle: c_uint,
@@ -28,18 +29,29 @@ pub fn unbind(_: *const VAO) void {
 pub fn attrib(
     _: *const VAO,
     T: type,
-    idx: usize,
-    elems: usize,
-    stride: usize,
+    idx: u32,
+    elems: i32,
+    stride: i32,
     offset: usize,
 ) void {
+    const ty = GL.DataType.from(T);
+
     c.glEnableVertexAttribArray(@truncate(idx));
-    c.glVertexAttribPointer(
-        @truncate(idx),
-        @as(c_int, @intCast(elems)),
-        @intFromEnum(GL.Type.as(T)), // type
-        c.GL_FALSE, // normalized
-        @intCast(stride), // stride
-        @ptrFromInt(offset), // offset
-    );
+    switch (ty) {
+        .f32 => c.glVertexAttribPointer(
+            idx,
+            elems,
+            @intFromEnum(ty), // type
+            c.GL_FALSE, // normalized
+            stride, // stride
+            @ptrFromInt(offset), // offset
+        ),
+        .u32, .u16, .u8 => c.glVertexAttribIPointer(
+            idx,
+            elems,
+            @intFromEnum(ty),
+            stride,
+            @ptrFromInt(offset),
+        ),
+    }
 }
