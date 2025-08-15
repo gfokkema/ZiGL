@@ -3,12 +3,8 @@ const c = @import("c").c;
 pub const Context = @import("context.zig").Context;
 pub const VAO = @import("vao.zig");
 pub const VBO = @import("vbo.zig").VBO;
-pub fn ArrayBuffer(comptime T: type) type {
-    return VBO(.Array, T);
-}
-pub fn ElementBuffer(comptime T: type) type {
-    return VBO(.Element, T);
-}
+pub const ArrayBuffer = VBO(.Array);
+pub const ElementBuffer = VBO(.Element);
 pub const Image = @import("image.zig");
 pub const Program = @import("program.zig");
 pub const Shader = @import("shader.zig");

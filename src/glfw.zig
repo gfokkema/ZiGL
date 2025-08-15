@@ -59,39 +59,35 @@ pub fn main() !void {
     defer window.deinit(alloc);
 
     var context = GL.Context(GLFW.Window).init(window);
-    defer context.deinit();
+    defer context.deinit(alloc);
     try context.viewport(window.size());
 
     var vertices = try load_model(alloc, @embedFile("res/cube.obj"), @embedFile("res/cube.mtl"));
     defer vertices.deinit(alloc);
 
-    const vao = GL.VAO.init();
-    defer vao.deinit();
-    const vbo = GL.ArrayBuffer(Vertex).init();
-    defer vbo.deinit();
+    const texture_1 = try context.create_texture(alloc, .UNIT_0, "res/debug_texture.jpg");
+    const texture_2 = try context.create_texture(alloc, .UNIT_1, "res/debug2.jpeg");
 
-    vao.bind();
-    vbo.bind();
-    try vao.attrib(f32, 0, 3, @sizeOf(Vertex), 0);
-    try vao.attrib(f32, 1, 2, @sizeOf(Vertex), @sizeOf(Vec3));
-    try vao.attrib(u32, 2, 1, @sizeOf(Vertex), @sizeOf(Vec3) + @sizeOf(Vec2));
-    vao.unbind();
-
-    vbo.upload(vertices.items);
-    vbo.unbind();
-
-    const texture_1 = context.create_texture(.UNIT_0, "res/debug_texture.jpg");
-    defer texture_1.deinit();
-    const texture_2 = context.create_texture(.UNIT_1, "res/debug2.jpeg");
-    defer texture_2.deinit();
-
-    try context.create_program(alloc, "res/cube.vs", "res/cube.fs");
-    context.program.use();
+    const attribs = GL.VAO.Attribs{
+        .stride = @sizeOf(Vertex),
+        .elements = &.{
+            .{ .elems = 3, .size = @sizeOf(Vec3), .gl_type = .f32 },
+            .{ .elems = 2, .size = @sizeOf(Vec2), .gl_type = .f32 },
+            .{ .elems = 1, .size = @sizeOf(u32), .gl_type = .u32 },
+        },
+    };
+    try context.create_program(alloc, .{
+        .vs = "res/cube.vs",
+        .fs = "res/cube.fs",
+        .attribs = attribs,
+    });
+    try context.attribs(attribs);
     try context.program.uniform("tex[0]", .Sampler2D).set(texture_1);
     try context.program.uniform("tex[1]", .Sampler2D).set(texture_2);
 
-    var camera = Camera.init(.{});
+    try context.upload(Vertex, vertices.items);
 
+    var camera = Camera.init(.{});
     while (!window.is_close()) {
         while (glfw.queue.pop()) |e| {
             std.debug.print("event: {any}\n", .{e});
@@ -113,7 +109,7 @@ pub fn main() !void {
             }
         }
 
-        context.draw(vao, camera.mvp(), 72);
+        context.draw(camera.mvp(), 72);
 
         window.render();
         window.swap();

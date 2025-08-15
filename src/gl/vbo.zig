@@ -7,7 +7,7 @@ const Type = enum(u16) {
     _,
 };
 
-pub fn VBO(V: Type, T: type) type {
+pub fn VBO(V: Type) type {
     return struct {
         const Self = @This();
 
@@ -31,7 +31,7 @@ pub fn VBO(V: Type, T: type) type {
             c.glBindBuffer(@intFromEnum(V), 0);
         }
 
-        pub fn upload(_: *const Self, data: []const T) void {
+        pub fn upload(_: *const Self, comptime T: type, data: []const T) void {
             c.glBufferData(
                 @intFromEnum(V),
                 @intCast(data.len * @sizeOf(T)),

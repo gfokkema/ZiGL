@@ -101,6 +101,7 @@ pub fn Uniform(comptime T: GL.DataType) type {
         }
 
         pub fn set(self: Self, val: anytype) !void {
+            self.program.use();
             switch (T) {
                 .u32 => _ = c.glUniform1i(self.loc, val),
                 .i32 => _ = c.glUniform1ui(self.loc, val),

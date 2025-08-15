@@ -4,10 +4,10 @@ const zlm = @import("zlm").SpecializeOn(f32);
 const Allocator = std.mem.Allocator;
 
 const GL = @import("gl.zig");
-const VAO = @import("vao.zig");
 const Program = @import("program.zig");
 const Shader = @import("shader.zig");
 const Texture = @import("texture.zig");
+const Texture2D = Texture.Texture2D;
 
 pub fn Context(comptime C: type) type {
     return struct {
@@ -15,26 +15,46 @@ pub fn Context(comptime C: type) type {
 
         context: *C,
         program: Program = undefined,
+        textures: std.ArrayList(Texture2D),
+        vao: GL.VAO,
+        vbo: GL.ArrayBuffer,
 
         pub fn init(context: *C) Self {
             return .{
                 .context = context,
+                .vao = GL.VAO.init(),
+                .vbo = GL.ArrayBuffer.init(),
+                .textures = std.ArrayListUnmanaged(Texture2D){},
             };
         }
 
-        pub fn deinit(self: Self) void {
+        pub fn deinit(self: *Self, alloc: Allocator) void {
+            for (self.textures.items) |t| t.deinit();
+            self.textures.deinit(alloc);
             self.program.deinit();
+            self.vao.deinit();
+            self.vbo.deinit();
         }
 
         pub fn activate(self: Self) void {
             return self.context.activate();
         }
 
-        pub fn create_program(self: *Self, alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !void {
-            var vs = try Shader.init_path(alloc, .VS, vs_path);
+        pub fn attribs(self: Self, attrs: GL.VAO.Attribs) !void {
+            try self.vao.attribs(self.vbo, attrs);
+        }
+
+        const Params = struct {
+            vs: []const u8,
+            fs: []const u8,
+            attribs: GL.VAO.Attribs,
+        };
+
+        pub fn create_program(self: *Self, alloc: Allocator, params: Params) !void {
+            var vs = try Shader.init_path(alloc, .VS, params.vs);
             defer vs.deinit();
 
-            var fs = try Shader.init_path(alloc, .FS, fs_path);
+            var fs = try Shader.init_path(alloc, .FS, params.fs);
             defer fs.deinit();
 
             const p = try Program.init();
@@ -49,10 +69,11 @@ pub fn Context(comptime C: type) type {
             self.program = p;
         }
 
-        pub fn create_texture(_: Self, unit: Texture.TextureUnit, path: []const u8) Texture.Texture2D {
+        pub fn create_texture(self: *Self, alloc: Allocator, unit: Texture.TextureUnit, path: []const u8) !Texture.Texture2D {
             var texture = Texture.Texture2D.init();
             texture.bind(unit);
             texture.upload_image(path);
+            try self.textures.append(alloc, texture);
             return texture;
         }
 
@@ -64,16 +85,16 @@ pub fn Context(comptime C: type) type {
             c.glClear(@intFromEnum(GL.ClearMode.Color) | @intFromEnum(GL.ClearMode.Depth));
         }
 
-        pub fn draw(self: Self, vao: VAO, mvp: zlm.Mat4, count: usize) void {
+        pub fn draw(self: Self, mvp: zlm.Mat4, count: usize) void {
             self.clearColor(.{});
             self.clear();
 
             self.program.use();
             try self.program.uniform("mvp", .Mat4).set(&mvp);
 
-            vao.bind();
+            self.vao.bind();
             self.drawArrays(.Triangles, count);
-            vao.unbind();
+            self.vao.unbind();
         }
 
         pub fn drawArrays(_: Self, mode: GL.DrawMode, count: usize) void {
@@ -91,6 +112,12 @@ pub fn Context(comptime C: type) type {
                 @intFromEnum(GL.DataType.from(T)),
                 @ptrFromInt(offs),
             );
+        }
+
+        pub fn upload(self: Self, comptime V: type, data: []V) !void {
+            self.vbo.bind();
+            self.vbo.upload(V, data);
+            self.vbo.unbind();
         }
 
         pub fn viewport(_: Self, size: @Vector(2, i32)) !void {

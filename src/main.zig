@@ -84,6 +84,4 @@ pub fn main() !void {
         // if (i % 5 == 0) system.cpu.print();
         system.cpu.step();
     }
-
-    try create_window(alloc, &system);
 }
