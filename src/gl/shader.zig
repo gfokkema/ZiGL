@@ -1,4 +1,4 @@
-const c = @import("c");
+const c = @import("c").c;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
@@ -15,14 +15,14 @@ const Param = enum(u16) {
     SRC_LENGTH = c.GL_SHADER_SOURCE_LENGTH,
     _,
 
-    pub fn int(self: Param) c_uint {
+    pub fn int(self: Param) u32 {
         return @intFromEnum(self);
     }
 };
 
 const Shader = @This();
 
-handle: c_uint,
+handle: u32,
 t: ShaderType,
 
 pub fn init(t: ShaderType) Shader {
@@ -53,7 +53,7 @@ pub fn compile(self: *const Shader, src: []const u8) !void {
     c.glShaderSource(self.handle, 1, &src.ptr, null);
     c.glCompileShader(self.handle);
 
-    var success: c_int = undefined;
+    var success: i32 = undefined;
     c.glGetShaderiv(self.handle, Param.COMPILE.int(), &success);
     if (success == c.GL_FALSE) return error.FailedCompilingShader;
 }

@@ -50,9 +50,11 @@ const Properties = struct {
 fn build_exe(b: *std.Build, p: Properties) void {
     const exe = b.addExecutable(.{
         .name = p.name,
-        .root_source_file = b.path(p.source),
-        .target = p.opt.t,
-        .optimize = p.opt.o,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(p.source),
+            .target = p.opt.t,
+            .optimize = p.opt.o,
+        }),
     });
 
     for (p.modules) |m| exe.root_module.addImport(m.name, m.module);

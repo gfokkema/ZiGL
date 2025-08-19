@@ -1,4 +1,4 @@
-const c = @import("c");
+const c = @import("c").c;
 const gl = @import("gl.zig");
 
 const Type = enum(u16) {
@@ -11,10 +11,10 @@ pub fn vbo(V: Type, T: type) type {
     return struct {
         const Self = @This();
 
-        handle: c_uint,
+        handle: u32,
 
         pub fn init() Self {
-            var handle: c_uint = undefined;
+            var handle: u32 = undefined;
             c.glGenBuffers(1, &handle);
             return .{ .handle = handle };
         }

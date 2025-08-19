@@ -1,15 +1,15 @@
-const c = @import("c");
+const c = @import("c").c;
 const GL = @import("gl.zig");
 const VBO = @import("vbo.zig");
 
 const VAO = @This();
 
-handle: c_uint,
+handle: u32,
 
 // fn Attrib(V: type, T: type)
 
 pub fn init() VAO {
-    var handle: c_uint = undefined;
+    var handle: u32 = undefined;
     c.glGenVertexArrays(1, &handle);
     return .{ .handle = handle };
 }
@@ -33,7 +33,7 @@ pub fn attrib(
     elems: i32,
     stride: i32,
     offset: usize,
-) void {
+) !void {
     const ty = GL.DataType.from(T);
 
     c.glEnableVertexAttribArray(@truncate(idx));
@@ -53,5 +53,6 @@ pub fn attrib(
             stride,
             @ptrFromInt(offset),
         ),
+        else => return error.UnsupportedParam,
     }
 }

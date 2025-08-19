@@ -2,9 +2,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Check = std.heap.Check;
 
-const GL = @import("gl/gl.zig");
 const GLFW = @import("glfw/glfw.zig");
-const Program = GL.Program;
+const Context = @import("gl/context.zig");
 
 const System = @import("system/system.zig");
 const CPU = System.CPU;
@@ -17,19 +16,22 @@ pub fn create_window(alloc: Allocator, system: *System) !void {
     var glfw = try GLFW.init(alloc);
     defer glfw.deinit();
 
+    var context = Context.init();
+    defer context.deinit();
+
     var window = try glfw.window(alloc);
     defer window.deinit();
 
-    const vao = GL.VAO.init();
+    const vao = Context.VAO.init();
     defer vao.deinit();
-    const vbo = GL.VBO.vbo(.Array, f32).init();
+    const vbo = Context.VBO.vbo(.Array, f32).init();
     defer vbo.deinit();
 
     vao.attrib(f32, 0, 3, 3 * @sizeOf(f32), 0);
     vbo.upload(&vertices);
 
-    const program = try GL.program(alloc, "res/shader.vs", "res/shader.fs");
-    defer program.deinit();
+    try context.program(alloc, "res/shader.vs", "res/shader.fs");
+    var program = context.state.program.?;
 
     while (!window.is_close()) {
         while (glfw.next()) |e| {
@@ -49,11 +51,11 @@ pub fn create_window(alloc: Allocator, system: *System) !void {
             }
         }
 
-        GL.clearColor(.{});
-        GL.clear();
+        Context.clearColor(.{});
+        Context.clear();
         program.use();
         vao.bind();
-        GL.draw(.Triangles, @sizeOf(@TypeOf(vertices)));
+        Context.draw(.Triangles, @sizeOf(@TypeOf(vertices)));
         vao.unbind();
 
         window.render();

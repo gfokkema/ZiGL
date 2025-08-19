@@ -1,7 +1,8 @@
-const c = @import("c");
+const c = @import("c").c;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const GLFW = @import("glfw.zig");
 const Event = @import("event.zig");
 const ImGui = @import("imgui.zig");
 
@@ -9,7 +10,7 @@ const Window = @This();
 
 alloc: Allocator,
 gui: ImGui = undefined,
-queue: *Event.Queue = undefined,
+queue: *GLFW.Queue = undefined,
 window: *c.GLFWwindow = undefined,
 
 const WindowArgs = struct {
@@ -17,7 +18,7 @@ const WindowArgs = struct {
     height: c_int = 720,
 };
 
-pub fn init(alloc: Allocator, queue: *Event.Queue, args: WindowArgs) !*Window {
+pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 3);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 3);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
@@ -31,12 +32,6 @@ pub fn init(alloc: Allocator, queue: *Event.Queue, args: WindowArgs) !*Window {
     ) orelse return error.CreateWindowError;
     c.glfwMakeContextCurrent(window);
     c.glfwSwapInterval(1);
-
-    var width: c_int = undefined;
-    var height: c_int = undefined;
-    c.glfwGetFramebufferSize(window, &width, &height);
-    c.glViewport(0, 0, width, height);
-    c.glEnable(c.GL_DEPTH_TEST);
 
     const self = try alloc.create(Window);
     c.glfwSetWindowUserPointer(window, self);
@@ -88,6 +83,13 @@ pub fn destroy(self: *Window) void {
     c.glfwDestroyWindow(self.window);
 }
 
+pub fn size(self: *Window) struct { width: i32, height: i32 } {
+    var width: c_int = undefined;
+    var height: c_int = undefined;
+    c.glfwGetFramebufferSize(self.window, &width, &height);
+    return .{ .width = width, .height = height };
+}
+
 pub fn render(self: *Window) void {
     // draw here
     self.gui.render();
@@ -97,25 +99,25 @@ pub fn swap(self: *Window) void {
     c.glfwSwapBuffers(self.window);
 }
 
-fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.C) void {
+fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.c) void {
     // const ratio: f32 = width / height;
     c.glViewport(0, 0, width, height);
 }
 
-pub fn key_callback(window: ?*c.GLFWwindow, key: c_int, _: c_int, action: c_int, _: c_int) callconv(.C) void {
+pub fn key_callback(window: ?*c.GLFWwindow, key: c_int, _: c_int, action: c_int, _: c_int) callconv(.c) void {
     if (c.igGetIO().*.WantCaptureKeyboard) return;
 
     const self: *Window = @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
-    const event: Event.Event = switch (@as(Event.Action, @enumFromInt(action))) {
+    const ev_action: Event.Action = @enumFromInt(action);
+    const event: Event.Event = switch (ev_action) {
         .PRESS => .{ .key_down = @enumFromInt(key) },
         .REPEAT => .{ .key_repeat = @enumFromInt(key) },
         .RELEASE => .{ .key_up = @enumFromInt(key) },
-        _ => .err,
     };
-    self.queue.writeItem(event) catch {};
+    self.queue.stack.appendBounded(event) catch {};
 }
 
-pub fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action_c: c_int, _: c_int) callconv(.C) void {
+pub fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action_c: c_int, _: c_int) callconv(.c) void {
     if (c.igGetIO().*.WantCaptureMouse) return;
 
     const self: *Window = @ptrCast(@alignCast(c.glfwGetWindowUserPointer(window)));
@@ -125,5 +127,5 @@ pub fn mouse_callback(window: ?*c.GLFWwindow, button: c_int, action_c: c_int, _:
         .RELEASE => .{ .mouse_up = @enumFromInt(button) },
         else => .err,
     };
-    self.queue.writeItem(event) catch {};
+    self.queue.stack.appendBounded(event) catch {};
 }

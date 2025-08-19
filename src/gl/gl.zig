@@ -1,16 +1,14 @@
-const c = @import("c");
-const std = @import("std");
-const Allocator = std.mem.Allocator;
+const c = @import("c").c;
 
+pub const Context = @import("context.zig").Context;
 pub const VAO = @import("vao.zig");
 pub const VBO = @import("vbo.zig");
 pub const Image = @import("image.zig");
 pub const Program = @import("program.zig");
-pub const Uniform = @import("uniform.zig");
 pub const Shader = @import("shader.zig");
 pub const Texture = @import("texture.zig");
 
-const Color = struct {
+pub const Color = struct {
     r: f32 = 0,
     g: f32 = 0,
     b: f32 = 0,
@@ -28,11 +26,18 @@ pub const Error = enum(u16) {
     StackOverFlow = c.GL_STACK_OVERFLOW,
 };
 
-pub const DataType = enum(u16) {
-    u32 = c.GL_UNSIGNED_INT,
-    u16 = c.GL_UNSIGNED_SHORT,
-    u8 = c.GL_UNSIGNED_BYTE,
+pub const DataType = enum(u32) {
     f32 = c.GL_FLOAT,
+    i32 = c.GL_INT,
+    u8 = c.GL_UNSIGNED_BYTE,
+    u16 = c.GL_UNSIGNED_SHORT,
+    u32 = c.GL_UNSIGNED_INT,
+    Vec2 = c.GL_FLOAT_VEC2,
+    Vec3 = c.GL_FLOAT_VEC3,
+    Vec4 = c.GL_FLOAT_VEC4,
+    Mat4 = c.GL_FLOAT_MAT4,
+    Sampler2D = c.GL_SAMPLER_2D,
+    _,
 
     pub fn from(T: type) DataType {
         return switch (T) {
@@ -56,63 +61,13 @@ pub const ClearMode = enum(u16) {
     Stencil = c.GL_STENCIL_BUFFER_BIT,
 };
 
-const State = struct {
-    program: ?Program = undefined,
+const TextureType = enum(u16) {
+    Texture2D = c.GL_TEXTURE_2D,
+    Texture2DArray = c.GL_TEXTURE_2D_ARRAY,
+    _,
 };
 
-const GL = @This();
-
-state: State = .{},
-
-pub fn clearColor(color: Color) void {
-    c.glClearColor(color.r, color.g, color.b, color.a);
-}
-
-pub fn clear() void {
-    c.glClear(@intFromEnum(ClearMode.Color) | @intFromEnum(ClearMode.Depth));
-}
-
-pub fn draw(mode: DrawMode, count: usize) void {
-    c.glDrawArrays(
-        @intFromEnum(mode),
-        0,
-        @intCast(count),
-    );
-}
-
-pub fn drawElements(mode: DrawMode, count: usize, T: type, offs: usize) void {
-    c.glDrawElements(
-        @intFromEnum(mode),
-        @intCast(count),
-        @intFromEnum(DataType.from(T)),
-        @ptrFromInt(offs),
-    );
-}
-
-pub fn getError() !void {
-    const err: Error = @enumFromInt(c.glGetError());
-    std.debug.print("ERROR: {any}\n", .{err});
-}
-
-pub fn program(alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !Program {
-    var vs = try Shader.init_path(alloc, .VS, vs_path);
-    defer vs.deinit();
-
-    var fs = try Shader.init_path(alloc, .FS, fs_path);
-    defer fs.deinit();
-
-    var p = try Program.init();
-    p.link(vs, fs) catch |e| {
-        p.log();
-        std.debug.panic("Program: {any}\n", .{e});
-    };
-
-    p.attribs();
-    p.uniforms();
-
-    return p;
-}
-
-pub fn texture() Texture.Texture2D {
-    return Texture.Texture2D.init();
-}
+const TextureUnit = enum(u16) {
+    UNIT_0 = c.GL_TEXTURE0,
+    UNIT_1 = c.GL_TEXTURE1,
+};
