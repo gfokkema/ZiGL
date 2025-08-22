@@ -2,7 +2,13 @@ const c = @import("c").c;
 
 pub const Context = @import("context.zig").Context;
 pub const VAO = @import("vao.zig");
-pub const VBO = @import("vbo.zig");
+pub const VBO = @import("vbo.zig").VBO;
+pub fn ArrayBuffer(comptime T: type) type {
+    return VBO(.Array, T);
+}
+pub fn ElementBuffer(comptime T: type) type {
+    return VBO(.Element, T);
+}
 pub const Image = @import("image.zig");
 pub const Program = @import("program.zig");
 pub const Shader = @import("shader.zig");
@@ -28,6 +34,8 @@ pub const Error = enum(u16) {
 
 pub const DataType = enum(u32) {
     f32 = c.GL_FLOAT,
+    i8 = c.GL_BYTE,
+    i16 = c.GL_SHORT,
     i32 = c.GL_INT,
     u8 = c.GL_UNSIGNED_BYTE,
     u16 = c.GL_UNSIGNED_SHORT,

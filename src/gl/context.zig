@@ -1,8 +1,10 @@
 const c = @import("c").c;
 const std = @import("std");
+const zlm = @import("zlm").SpecializeOn(f32);
 const Allocator = std.mem.Allocator;
 
 const GL = @import("gl.zig");
+const VAO = @import("vao.zig");
 const Program = @import("program.zig");
 const Shader = @import("shader.zig");
 const Texture = @import("texture.zig");
@@ -11,25 +13,21 @@ pub fn Context(comptime C: type) type {
     return struct {
         const Self = @This();
 
-        state: struct {
-            context: *C,
-            program: ?Program = undefined,
-        },
+        context: *C,
+        program: Program = undefined,
 
         pub fn init(context: *C) Self {
             return .{
-                .state = .{
-                    .context = context,
-                },
+                .context = context,
             };
         }
 
         pub fn deinit(self: Self) void {
-            if (self.state.program) |p| p.deinit();
+            self.program.deinit();
         }
 
         pub fn activate(self: Self) void {
-            return self.state.context.activate();
+            return self.context.activate();
         }
 
         pub fn create_program(self: *Self, alloc: Allocator, vs_path: []const u8, fs_path: []const u8) !void {
@@ -48,11 +46,14 @@ pub fn Context(comptime C: type) type {
             p.attribs();
             p.uniforms();
 
-            self.state.program = p;
+            self.program = p;
         }
 
-        pub fn create_texture(_: Self) Texture.Texture2D {
-            return Texture.Texture2D.init();
+        pub fn create_texture(_: Self, unit: Texture.TextureUnit, path: []const u8) Texture.Texture2D {
+            var texture = Texture.Texture2D.init();
+            texture.bind(unit);
+            texture.upload_image(path);
+            return texture;
         }
 
         pub fn clearColor(_: Self, color: GL.Color) void {
@@ -63,7 +64,19 @@ pub fn Context(comptime C: type) type {
             c.glClear(@intFromEnum(GL.ClearMode.Color) | @intFromEnum(GL.ClearMode.Depth));
         }
 
-        pub fn draw(_: Self, mode: GL.DrawMode, count: usize) void {
+        pub fn draw(self: Self, vao: VAO, mvp: zlm.Mat4, count: usize) void {
+            self.clearColor(.{});
+            self.clear();
+
+            self.program.use();
+            try self.program.uniform("mvp", .Mat4).set(&mvp);
+
+            vao.bind();
+            self.drawArrays(.Triangles, count);
+            vao.unbind();
+        }
+
+        pub fn drawArrays(_: Self, mode: GL.DrawMode, count: usize) void {
             c.glDrawArrays(
                 @intFromEnum(mode),
                 0,
@@ -80,9 +93,8 @@ pub fn Context(comptime C: type) type {
             );
         }
 
-        pub fn viewport(self: Self) !void {
-            const size = self.state.context.size();
-            c.glViewport(0, 0, size.width, size.height);
+        pub fn viewport(_: Self, size: @Vector(2, i32)) !void {
+            c.glViewport(0, 0, size[0], size[1]);
             c.glEnable(c.GL_DEPTH_TEST);
         }
     };

@@ -16,6 +16,7 @@ window: *c.GLFWwindow = undefined,
 const WindowArgs = struct {
     width: c_int = 1280,
     height: c_int = 720,
+    title: []const u8 = "My Title",
 };
 
 pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
@@ -26,7 +27,7 @@ pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
     const window = c.glfwCreateWindow(
         args.width,
         args.height,
-        "My Title",
+        @ptrCast(args.title),
         null,
         null,
     ) orelse return error.CreateWindowError;
@@ -48,10 +49,10 @@ pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
     return self;
 }
 
-pub fn deinit(self: *Window) void {
+pub fn deinit(self: *Window, alloc: Allocator) void {
     self.gui.deinit();
     self.destroy();
-    self.alloc.destroy(self);
+    alloc.destroy(self);
 }
 
 pub fn is_active(self: *Window) bool {
@@ -83,11 +84,11 @@ pub fn destroy(self: *Window) void {
     c.glfwDestroyWindow(self.window);
 }
 
-pub fn size(self: *Window) struct { width: i32, height: i32 } {
-    var width: c_int = undefined;
-    var height: c_int = undefined;
+pub fn size(self: *Window) @Vector(2, i32) {
+    var width: i32 = undefined;
+    var height: i32 = undefined;
     c.glfwGetFramebufferSize(self.window, &width, &height);
-    return .{ .width = width, .height = height };
+    return .{ width, height };
 }
 
 pub fn render(self: *Window) void {
@@ -99,6 +100,7 @@ pub fn swap(self: *Window) void {
     c.glfwSwapBuffers(self.window);
 }
 
+// TODO: remove last call to gl
 fn resize_callback(_: ?*c.GLFWwindow, width: c_int, height: c_int) callconv(.c) void {
     // const ratio: f32 = width / height;
     c.glViewport(0, 0, width, height);

@@ -7,7 +7,7 @@ const Type = enum(u16) {
     _,
 };
 
-pub fn vbo(V: Type, T: type) type {
+pub fn VBO(V: Type, T: type) type {
     return struct {
         const Self = @This();
 

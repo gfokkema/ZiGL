@@ -1,22 +1,33 @@
 const c = @import("c").c;
 const zlm = @import("zlm");
 
+const GL = @import("gl.zig");
 const Image = @import("image.zig");
+
+pub const TextureUnit = enum(u16) {
+    UNIT_0 = c.GL_TEXTURE0,
+    UNIT_1 = c.GL_TEXTURE1,
+    _,
+
+    pub fn index(self: TextureUnit) i32 {
+        return @intFromEnum(self) - @intFromEnum(TextureUnit.UNIT_0);
+    }
+};
 
 pub const TextureType = enum(u16) {
     Texture2D = c.GL_TEXTURE_2D,
     Texture2DArray = c.GL_TEXTURE_2D_ARRAY,
     _,
 };
-pub const TextureUnit = enum(u16) {
-    UNIT_0 = c.GL_TEXTURE0,
-    UNIT_1 = c.GL_TEXTURE1,
 
-    pub fn index(self: TextureUnit) i32 {
-        return @intFromEnum(self) - @intFromEnum(TextureUnit.UNIT_0);
-    }
+const TextureOptions = struct {
+    level: u8 = 0,
+    dtype: GL.DataType = .u8,
+    internal: i32 = c.GL_RGB,
+    format: u32 = c.GL_RGB,
+    width: i32,
+    height: i32,
 };
-const TextureLevel = u8;
 
 pub const Texture2D = Texture(.Texture2D);
 pub const Texture2DArray = Texture(.Texture2DArray);
@@ -53,7 +64,17 @@ pub fn Texture(T: TextureType) type {
             c.glBindTexture(@intFromEnum(T), 0);
         }
 
-        pub fn upload(_: *const Self, level: TextureLevel, image: Image) void {
+        pub fn upload_image(self: Self, path: []const u8) void {
+            const image = Image.init(path);
+            defer image.deinit();
+
+            self.upload(.{
+                .width = image.params.width,
+                .height = image.params.height,
+            }, image.image);
+        }
+
+        pub fn upload(_: *const Self, opts: TextureOptions, data: *anyopaque) void {
             // set the texture wrapping/filtering options (on the currently bound texture object)
             c.glTexParameteri(@intFromEnum(T), c.GL_TEXTURE_WRAP_S, c.GL_REPEAT);
             c.glTexParameteri(@intFromEnum(T), c.GL_TEXTURE_WRAP_T, c.GL_REPEAT);
@@ -62,14 +83,14 @@ pub fn Texture(T: TextureType) type {
             // load and generate the texture
             c.glTexImage2D(
                 @intFromEnum(T),
-                level,
-                c.GL_RGB,
-                image.params.width,
-                image.params.height,
+                opts.level,
+                opts.internal,
+                opts.width,
+                opts.height,
                 0,
-                c.GL_RGB,
-                c.GL_UNSIGNED_BYTE,
-                image.image,
+                opts.format,
+                @intFromEnum(opts.dtype),
+                data,
             );
         }
     };

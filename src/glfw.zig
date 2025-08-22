@@ -16,8 +16,6 @@ const Vertex = extern struct {
     tex: Vec2,
     tex_id: i32,
 };
-const ArrayBuffer = GL.VBO.vbo(.Array, Vertex);
-const ElementBuffer = GL.VBO.vbo(.Element, u32);
 
 fn load_model(alloc: Allocator, obj: []const u8, mtl: []const u8) !std.ArrayList(Vertex) {
     var model = try zobj.parseObj(alloc, obj);
@@ -58,24 +56,18 @@ pub fn main() !void {
     defer glfw.deinit(alloc);
 
     var window = try glfw.window(alloc);
-    defer window.deinit();
+    defer window.deinit(alloc);
 
     var context = GL.Context(GLFW.Window).init(window);
     defer context.deinit();
+    try context.viewport(window.size());
 
-    try context.viewport();
-    try context.create_program(alloc, "res/cube.vs", "res/cube.fs");
-
-    var vertices = try load_model(
-        alloc,
-        @embedFile("res/cube.obj"),
-        @embedFile("res/cube.mtl"),
-    );
+    var vertices = try load_model(alloc, @embedFile("res/cube.obj"), @embedFile("res/cube.mtl"));
     defer vertices.deinit(alloc);
 
     const vao = GL.VAO.init();
     defer vao.deinit();
-    const vbo = ArrayBuffer.init();
+    const vbo = GL.ArrayBuffer(Vertex).init();
     defer vbo.deinit();
 
     vao.bind();
@@ -88,30 +80,20 @@ pub fn main() !void {
     vbo.upload(vertices.items);
     vbo.unbind();
 
-    const image_1 = GL.Image.init("res/debug_texture.jpg");
-    defer image_1.deinit();
-    var texture_1 = context.create_texture();
+    const texture_1 = context.create_texture(.UNIT_0, "res/debug_texture.jpg");
     defer texture_1.deinit();
-
-    const image_2 = GL.Image.init("res/debug2.jpeg");
-    defer image_2.deinit();
-    var texture_2 = context.create_texture();
+    const texture_2 = context.create_texture(.UNIT_1, "res/debug2.jpeg");
     defer texture_2.deinit();
 
-    texture_1.bind(.UNIT_0);
-    texture_1.upload(0, image_1);
-    texture_2.bind(.UNIT_1);
-    texture_2.upload(0, image_2);
+    try context.create_program(alloc, "res/cube.vs", "res/cube.fs");
+    context.program.use();
+    try context.program.uniform("tex[0]", .Sampler2D).set(texture_1);
+    try context.program.uniform("tex[1]", .Sampler2D).set(texture_2);
 
     var camera = Camera.init(.{});
-    var program = context.state.program.?;
-    program.use();
-    try program.uniform("mvp", .Mat4).set(&camera.mvp());
-    try program.uniform("tex[0]", .Sampler2D).set(texture_1);
-    try program.uniform("tex[1]", .Sampler2D).set(texture_2);
 
     while (!window.is_close()) {
-        while (glfw.next()) |e| {
+        while (glfw.queue.pop()) |e| {
             std.debug.print("event: {any}\n", .{e});
             switch (e) {
                 .err => {},
@@ -131,15 +113,7 @@ pub fn main() !void {
             }
         }
 
-        context.clearColor(.{});
-        context.clear();
-
-        program.use();
-        try program.uniform("mvp", .Mat4).set(&camera.mvp());
-
-        vao.bind();
-        context.draw(.Triangles, 72);
-        vao.unbind();
+        context.draw(vao, camera.mvp(), 72);
 
         window.render();
         window.swap();
