@@ -1,40 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const ROM = @import("rom.zig");
-
 const CPU = @This();
-
-pub const Memory = struct {
-    pub const Bank = [0x10000]u8;
-
-    banks: []Bank,
-
-    pub fn init(alloc: Allocator) !Memory {
-        return .{ .banks = try alloc.alloc(Bank, 0x100) };
-    }
-
-    pub fn deinit(self: *Memory, alloc: Allocator) void {
-        alloc.free(self.banks);
-    }
-};
-
-const Mode = enum(u1) {
-    NORMAL = 0,
-    EMULATION = 1,
-};
-
-const RegMode = enum(u1) {
-    u16 = 0,
-    u8 = 1,
-
-    fn size(self: RegMode) u16 {
-        return switch (self) {
-            .u8 => 1,
-            .u16 => 2,
-        };
-    }
-};
 
 const Flags = packed union {
     val: u8,
@@ -43,180 +10,142 @@ const Flags = packed union {
         z: bool = false,
         i: bool = false,
         d: bool = false,
-        x: RegMode = RegMode.u16,
-        m: RegMode = RegMode.u16,
         v: bool = false,
         n: bool = false,
     },
 
-    pub fn print(self: *const Flags) void {
-        std.debug.print(" flags:\n", .{});
-        std.debug.print("  n: {} (negative)\n", .{self.flags.n});
-        std.debug.print("  v: {} (overflow)\n", .{self.flags.v});
-        std.debug.print("  m: {} (acc_mode)\n", .{self.flags.m});
-        std.debug.print("  x: {} (reg_mode)\n", .{self.flags.x});
-        std.debug.print("  d: {} (decimal)\n", .{self.flags.d});
-        std.debug.print("  d: {} (irq disable)\n", .{self.flags.i});
-        std.debug.print("  d: {} (zero)\n", .{self.flags.z});
-        std.debug.print("  c: {} (carry)\n", .{self.flags.c});
+    pub fn format(self: Flags, writer: *std.io.Writer) std.io.Writer.Error!void {
+        try writer.write(" flags:\n", .{});
+        try writer.write("  n: {} (negative)\n", .{self.flags.n});
+        try writer.write("  v: {} (overflow)\n", .{self.flags.v});
+        try writer.write("  d: {} (decimal)\n", .{self.flags.d});
+        try writer.write("  m: {} (acc_mode)\n", .{self.flags.m});
+        try writer.write("  i: {} (irq disable)\n", .{self.flags.i});
+        try writer.write("  z: {} (zero)\n", .{self.flags.z});
+        try writer.write("  c: {} (carry)\n", .{self.flags.c});
     }
 };
 
-const Register = struct {
-    val: u16 = 0,
+const Register = packed union {
+    u8: packed struct { a: u8, b: u8 },
+    u16: u16,
+
+    pub fn format(self: Register, writer: *std.io.Writer) std.io.Writer.Error!void {
+        try writer.print("0x{x} [0x{x}, 0x{x}]", .{ self.u16, self.u8.a, self.u8.b });
+    }
 };
+const Zero = Register{ .u16 = 0 };
 
-memory: Memory,
-mode: Mode = Mode.NORMAL,
+const OpType = enum(u8) {
+    NOP = 0x0,
 
-dp: u16 = 0, // direct page pointer
-sp: u16 = 0, // stack pointer
+    LD_D16_HL = 0x21, // Load u16 into HL
+    LD_D8_H = 0x26, // Load u8 into h
+    LD_D16_SP = 0x31, // Load u16 into SP
+    LD_D8_A = 0x3e, // Load d8 into a
 
-db: u8 = 0, // data bank
-pb: u8 = 0x80, // program bank
-pc: u16 = 0x8000, // program counter
+    LD_L_A = 0x7d, // Load L into A
 
-p: Flags = .{ .val = 0 }, // p flags
-
-a: Register = .{}, // accumulator
-x: Register = .{}, // register
-y: Register = .{}, // register
-
-pub fn print(self: *const CPU) void {
-    std.debug.print("\nCPU:\n", .{});
-    std.debug.print(" registers:\n", .{});
-    std.debug.print("   a: 0x{x:0>4}\n", .{self.a.val});
-    std.debug.print("   x: 0x{x:0>4}    y: 0x{x:0>4}\n", .{ self.x.val, self.y.val });
-    std.debug.print(" pointers:\n", .{});
-    std.debug.print("  dp: 0x{x:0>4}\n", .{self.dp});
-    std.debug.print("  db: 0x{x:0>4}   sp: 0x{x:0>4}\n", .{ self.db, self.sp });
-    std.debug.print("  pb: 0x{x:0>4}   pc: 0x{x:0>4}\n", .{ self.pb, self.pc });
-    std.debug.print(" mode: {}\n", .{self.mode});
-    self.p.print();
-    std.debug.print("\n", .{});
-}
-
-pub const InstrType = enum(u8) {
-    CLC = 0x18,
-    TCS = 0x1B,
-    ORA = 0x1F,
-    PHA = 0x48,
-    TCD = 0x5B,
-    SEI = 0x78,
-    STA = 0x8D,
-    BCC = 0x90,
-    STAY = 0x99,
-    STZ = 0x9C,
-    STAX = 0x9D,
-    LDX = 0xA2,
-    LDA = 0xA9,
-    PLB = 0xAB,
-    LDAL = 0xBF,
-    REP = 0xC2,
-    CLD = 0xD8,
-    CPX = 0xE0,
-    SEP = 0xE2,
-    INX = 0xE8,
-    XCE = 0xFB,
+    LD_HL_A = 0x7e, // Load [HL] into A
+    JP_16 = 0xc3, // Jump to u16
+    CALL_16 = 0xcd,
+    LD_A_MEM_8 = 0xe0, // Store A into short address
+    LD_A_MEM_16 = 0xea, // Store A into op address
+    DI = 0xf3, // Disable Interrupts
     _,
 };
 
-pub fn arg(self: *CPU, t: type) t {
-    const a: t = self.memory.banks[self.pb][self.pc + 1];
-    std.debug.print(" 0x{x}", .{a});
-    return a;
+pc: Register = .{ .u16 = 0x100 }, // program counter
+sp: Register = Zero, // stack pointer
+
+af: Register = Zero,
+bc: Register = Zero,
+de: Register = Zero,
+hl: Register = Zero,
+
+pub fn range(_: *CPU, data: []u8, comptime T: type, start: u16) T {
+    return std.mem.readInt(T, @ptrCast(data[start .. start + @sizeOf(T)]), .little);
 }
 
-pub fn push(self: *CPU, t: type, data: t) void {
-    defer self.sp += 1;
-    self.memory.banks[0][self.sp] = data;
-}
+pub fn step(self: *CPU, data: []u8, memory: []u8) void {
+    std.debug.print("{f}\n", .{self});
+    std.debug.print("--\n", .{});
 
-pub fn pull(self: *CPU, t: type) t {
-    defer self.sp -= 1;
-    return self.memory.banks[0][self.sp];
-}
+    // switch (op) |o| {
+    //     inline else => o =
+    // }
+    const op: OpType = @enumFromInt(data[self.pc.u16]);
+    std.debug.print("op: {any}\n", .{op});
+    switch (op) {
+        .NOP => self.pc.u16 += 1,
+        .LD_D16_HL => { // 0x21
+            const val = self.range(data, u16, self.pc.u16 + 1);
+            self.hl.u16 = val;
+            self.pc.u16 += 3;
+        },
+        .LD_D8_H => { // 0x26
+            const val = self.range(data, u8, self.pc.u16 + 1);
+            self.hl.u8.a = val;
+            self.pc.u16 += 2;
+        },
+        .LD_D16_SP => { // 0x31
+            const val = self.range(data, u16, self.pc.u16 + 1);
+            self.sp.u16 = val;
+            self.pc.u16 += 3;
+        },
+        .LD_D8_A => { // 0x3e
+            const val = self.range(data, u8, self.pc.u16 + 1);
+            self.af.u8.a = val;
+            self.pc.u16 += 2;
+        },
+        .LD_L_A => {
+            self.hl.u8.b = self.af.u8.a;
+            self.pc.u16 += 1;
+        },
+        .LD_HL_A => { // 0x7e
+            const addr = self.range(data, u8, self.hl.u16 + 1);
+            self.af.u8.a = memory[addr];
+            self.pc.u16 += 1;
+        },
+        .JP_16 => { // 0xc3
+            const addr = self.range(data, u16, self.pc.u16 + 1);
+            self.pc.u16 = addr;
+        },
+        .LD_A_MEM_8 => { // 0xe0
+            const addr = self.range(data, u8, self.pc.u16 + 1);
+            memory[0xFF00 + @as(u16, @intCast(addr))] = self.af.u8.a;
+            self.pc.u16 += 2;
+        },
+        .LD_A_MEM_16 => { // 0xea
+            const addr = self.range(data, u8, self.pc.u16 + 1);
+            memory[addr] = self.af.u8.a;
+            self.pc.u16 += 3;
+        },
+        .CALL_16 => { // 0xcd
+            // push current pc onto stack
+            memory[self.sp.u16 - 1] = self.pc.u8.a;
+            memory[self.sp.u16 - 2] = self.pc.u8.b;
+            self.sp.u16 -= 2;
 
-fn _get(self: *CPU, t: type) t {
-    const res = std.mem.readInt(
-        t,
-        @ptrCast(self.memory.banks[self.pb][self.pc + 1 ..]),
-        .little,
-    );
-    std.debug.print(" 0x{x}", .{res});
-    return res;
-}
+            // std.debug.print("memory: 0x{x}\n", .{memory[0xdff0..0xe000]});
+            // std.debug.print("current [sp]: {x}\n", .{memory[self.sp.u16]});
 
-fn get(self: *CPU, r: RegMode) u16 {
-    return switch (r) {
-        .u8 => self._get(u8),
-        .u16 => self._get(u16),
-    };
-}
-
-pub fn step(self: *CPU) void {
-    const b = self.memory.banks[self.pb][self.pc];
-    const instr = std.meta.intToEnum(InstrType, b) catch {
-        std.debug.panic("Unknown instr: 0x{x:0>2}", .{b});
-    };
-    std.debug.print("{any}", .{instr});
-
-    switch (instr) {
-        .SEI => {
-            self.p.flags.i = true;
-            self.pc += 1;
+            // jump to function
+            const addr = self.range(data, u16, self.pc.u16 + 1);
+            self.pc.u16 = addr;
         },
-        .CLD => {
-            self.p.flags.d = false;
-            self.pc += 1;
+        .DI => { // 0xf3
+            self.pc.u16 += 1;
         },
-        .CLC => {
-            self.p.flags.c = false;
-            self.pc += 1;
-        },
-        .XCE => {
-            const t = self.mode;
-            self.mode = @enumFromInt(@intFromBool(self.p.flags.c));
-            self.p.flags.c = @bitCast(@intFromEnum(t));
-            self.pc += 1;
-        },
-        .SEP => {
-            self.p.val = self.p.val | self.arg(u8);
-            self.pc += 2;
-        },
-        .REP => {
-            self.p.val = self.p.val ^ self.arg(u8);
-            self.pc += 2;
-        },
-        .LDA => {
-            self.a.val = self.get(self.p.flags.m);
-            self.pc += 1 + self.p.flags.m.size();
-        },
-        .LDX => {
-            self.x.val = self.get(self.p.flags.x);
-            self.pc += 1 + self.p.flags.x.size();
-        },
-        .STA => {
-            // self.set(@truncate(self.a.val));
-            self.memory.banks[self.pb][self.arg(u16)] = @truncate(self.a.val);
-            self.pc += 3;
-        },
-        .STZ => {
-            self.memory.banks[self.pb][self.arg(u16)] = 0;
-            self.pc += 3;
-        },
-        .PHA => {
-            self.push(u8, @truncate(self.a.val));
-            self.pc += 1;
-        },
-        .PLB => {
-            self.db = self.pull(u8);
-            self.pc += 1;
-        },
-        else => {
-            std.debug.print(" (unimplemented)", .{});
-            self.pc += 1;
-        },
+        else => std.debug.panic("Unsupported instruction: 0x{x}", .{op}),
     }
-    std.debug.print("\n", .{});
+}
+
+pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
+    try writer.print("cpu:\n", .{});
+    try writer.print(" pointers:\n", .{});
+    try writer.print("  pc: {f}   sp: {f}\n", .{ self.pc, self.sp });
+    try writer.print(" registers:\n", .{});
+    try writer.print("  af: {f}   bc: {f}\n", .{ self.af, self.bc });
+    try writer.print("  de: {f}   hl: {f}", .{ self.de, self.hl });
 }
