@@ -21,6 +21,6 @@ pub fn main() !void {
     var cpu = System.CPU{};
     for (0..200) |_| {
         // if (i % 5 == 0) system.cpu.print();
-        cpu.step(rom.data, &system.memory.data);
+        cpu.step(rom.data);
     }
 }

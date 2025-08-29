@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Ops = @import("operations.zig");
 
 const CPU = @This();
 
@@ -36,25 +37,6 @@ const Register = packed union {
 };
 const Zero = Register{ .u16 = 0 };
 
-const OpType = enum(u8) {
-    NOP = 0x0,
-
-    LD_D16_HL = 0x21, // Load u16 into HL
-    LD_D8_H = 0x26, // Load u8 into h
-    LD_D16_SP = 0x31, // Load u16 into SP
-    LD_D8_A = 0x3e, // Load d8 into a
-
-    LD_L_A = 0x7d, // Load L into A
-
-    LD_HL_A = 0x7e, // Load [HL] into A
-    JP_16 = 0xc3, // Jump to u16
-    CALL_16 = 0xcd,
-    LD_A_MEM_8 = 0xe0, // Store A into short address
-    LD_A_MEM_16 = 0xea, // Store A into op address
-    DI = 0xf3, // Disable Interrupts
-    _,
-};
-
 pc: Register = .{ .u16 = 0x100 }, // program counter
 sp: Register = Zero, // stack pointer
 
@@ -63,82 +45,13 @@ bc: Register = Zero,
 de: Register = Zero,
 hl: Register = Zero,
 
-pub fn range(_: *CPU, data: []u8, comptime T: type, start: u16) T {
-    return std.mem.readInt(T, @ptrCast(data[start .. start + @sizeOf(T)]), .little);
-}
+pub fn step(cpu: *CPU, data: []u8) void {
+    // std.debug.print("{f}\n", .{cpu});
+    // std.debug.print("--\n", .{});
 
-pub fn step(self: *CPU, data: []u8, memory: []u8) void {
-    std.debug.print("{f}\n", .{self});
-    std.debug.print("--\n", .{});
-
-    // switch (op) |o| {
-    //     inline else => o =
-    // }
-    const op: OpType = @enumFromInt(data[self.pc.u16]);
-    std.debug.print("op: {any}\n", .{op});
-    switch (op) {
-        .NOP => self.pc.u16 += 1,
-        .LD_D16_HL => { // 0x21
-            const val = self.range(data, u16, self.pc.u16 + 1);
-            self.hl.u16 = val;
-            self.pc.u16 += 3;
-        },
-        .LD_D8_H => { // 0x26
-            const val = self.range(data, u8, self.pc.u16 + 1);
-            self.hl.u8.a = val;
-            self.pc.u16 += 2;
-        },
-        .LD_D16_SP => { // 0x31
-            const val = self.range(data, u16, self.pc.u16 + 1);
-            self.sp.u16 = val;
-            self.pc.u16 += 3;
-        },
-        .LD_D8_A => { // 0x3e
-            const val = self.range(data, u8, self.pc.u16 + 1);
-            self.af.u8.a = val;
-            self.pc.u16 += 2;
-        },
-        .LD_L_A => {
-            self.hl.u8.b = self.af.u8.a;
-            self.pc.u16 += 1;
-        },
-        .LD_HL_A => { // 0x7e
-            const addr = self.range(data, u8, self.hl.u16 + 1);
-            self.af.u8.a = memory[addr];
-            self.pc.u16 += 1;
-        },
-        .JP_16 => { // 0xc3
-            const addr = self.range(data, u16, self.pc.u16 + 1);
-            self.pc.u16 = addr;
-        },
-        .LD_A_MEM_8 => { // 0xe0
-            const addr = self.range(data, u8, self.pc.u16 + 1);
-            memory[0xFF00 + @as(u16, @intCast(addr))] = self.af.u8.a;
-            self.pc.u16 += 2;
-        },
-        .LD_A_MEM_16 => { // 0xea
-            const addr = self.range(data, u8, self.pc.u16 + 1);
-            memory[addr] = self.af.u8.a;
-            self.pc.u16 += 3;
-        },
-        .CALL_16 => { // 0xcd
-            // push current pc onto stack
-            memory[self.sp.u16 - 1] = self.pc.u8.a;
-            memory[self.sp.u16 - 2] = self.pc.u8.b;
-            self.sp.u16 -= 2;
-
-            // std.debug.print("memory: 0x{x}\n", .{memory[0xdff0..0xe000]});
-            // std.debug.print("current [sp]: {x}\n", .{memory[self.sp.u16]});
-
-            // jump to function
-            const addr = self.range(data, u16, self.pc.u16 + 1);
-            self.pc.u16 = addr;
-        },
-        .DI => { // 0xf3
-            self.pc.u16 += 1;
-        },
-        else => std.debug.panic("Unsupported instruction: 0x{x}", .{op}),
-    }
+    const op = Ops.Ops.init(data, cpu.pc.u16);
+    std.debug.print("{f}\n", .{op});
+    op.exec(cpu, data);
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
