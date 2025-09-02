@@ -90,17 +90,14 @@ const Header = extern struct {
     }
 };
 
-alloc: Allocator,
 data: []u8,
 
-pub fn init(alloc: Allocator, rom: []const u8) !ROM {
-    const data = try std.fs.cwd().readFileAlloc(alloc, rom, MAXBUFF);
-    return .{ .alloc = alloc, .data = data };
+pub fn init(rom: []const u8, data: []u8) !ROM {
+    _ = try std.fs.cwd().readFile(rom, data);
+    return .{ .data = data };
 }
 
-pub fn deinit(self: *ROM) void {
-    self.alloc.free(self.data);
-}
+pub fn deinit(_: ROM) void {}
 
 pub fn header(self: *const ROM) *Header {
     return @ptrCast(@alignCast(self.data[HDROFFS .. HDROFFS + HDREND].ptr));
