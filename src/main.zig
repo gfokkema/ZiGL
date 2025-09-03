@@ -8,20 +8,20 @@ pub fn main() !void {
     // defer std.debug.assert(gpa.deinit() == Check.ok);
     // const alloc = gpa.allocator();
 
-    var system = try System.init();
-    defer system.deinit();
+    var memory = System.Memory.init();
+    defer memory.deinit();
 
-    var memory = std.mem.zeroes([0xFFFFF]u8);
-    const rom = try System.ROM.init("res/cpu_instrs.gb", memory[0..]);
+    const rom = try System.ROM.init("res/tetris.gb", memory.data[0..]);
     defer rom.deinit();
 
     // try rom.check();
     std.debug.print("{f}\n", .{rom.header()});
+    std.debug.print("{any}\n", .{System.Memory.Section.init(0x4100)});
     // rom.header().checksum();
 
     var cpu = System.CPU{};
-    for (0..200) |_| {
+    for (0..20000) |_| {
         // if (i % 5 == 0) system.cpu.print();
-        try cpu.step(rom.data);
+        try cpu.step(&memory);
     }
 }

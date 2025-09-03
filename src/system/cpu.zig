@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const Memory = @import("memory.zig");
 const Ops = @import("operations.zig");
 
 const CPU = @This();
@@ -43,18 +44,20 @@ bc: Register = Zero,
 de: Register = Zero,
 hl: Register = Zero,
 
-pub fn step(cpu: *CPU, data: []u8) !void {
-    // std.debug.print("{f}\n", .{cpu});
-    // std.debug.print("--\n", .{});
-
-    const op = try Ops.Ops.init(data, cpu.pc.u16);
-    std.debug.print("{f}\n", .{op});
-    op.exec(cpu, data);
+pub fn step(self: *CPU, mem: *Memory) !void {
+    const opt = std.meta.intToEnum(Ops.OpType, mem.get(self.pc.u16)) catch {
+        std.debug.panic("Unsupported instruction: 0x{x}", .{mem.get(self.pc.u16)});
+    };
+    const op = switch (opt) {
+        inline else => |t| try Ops.Ops.init(t, mem.slice(self.pc.u16)),
+    };
+    std.debug.print("0x{x:0>4}    {f}\n", .{ self.pc.u16, op });
+    op.exec(self, mem);
     // std.debug.print("{f}\n", .{cpu});
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
-    try writer.print("   flags: {f}\n", .{self.flags});
     try writer.print("   pc: {f}   sp: {f}\n", .{ self.pc, self.sp });
-    try writer.print("   af: {f}   bc: {f}   de: {f}   hl: {f} }} }}", .{ self.af, self.bc, self.de, self.hl });
+    try writer.print("   af: {f}   bc: {f}   de: {f}   hl: {f} }} }}\n", .{ self.af, self.bc, self.de, self.hl });
+    try writer.print("   flags: {f}", .{self.flags});
 }
