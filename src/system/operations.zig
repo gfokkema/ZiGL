@@ -66,13 +66,13 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("NOP", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), _: *CPU, _: *Memory) void {}
+        pub fn exec(_: @This(), _: *CPU, _: *Memory) !void {}
     },
     LD_BC_D16: struct {
         const Op = OpDesc("LD", u16, 3, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.bc.u16 = self.op.arg;
         }
     },
@@ -80,15 +80,15 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) void {
-            mem.set(cpu.bc.u16, cpu.af.u8.a);
+        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) !void {
+            try mem.set(cpu.bc.u16, cpu.af.u8.a);
         }
     },
     INC_BC: struct {
         const Op = OpDesc("INC bc", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.bc.u16 += 1;
         }
     },
@@ -96,7 +96,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("INC b", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @addWithOverflow(cpu.bc.u8.a, 1);
             cpu.bc.u8.a = res[0];
             cpu.flags.f.c = res[1] > 0;
@@ -107,7 +107,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("DEC    b", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.bc.u8.a, 1);
             cpu.bc.u8.a = res[0];
             cpu.flags.f.z = res[0] == 0;
@@ -118,7 +118,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u8, 2, 2);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.bc.u8.a = self.op.arg;
         }
     },
@@ -126,7 +126,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("DEC    c", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.bc.u8.b, 1);
             std.debug.print("{any}\n", .{res});
             cpu.bc.u8.b = res[0];
@@ -138,7 +138,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u8, 2, 2);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.bc.u8.b = self.op.arg;
         }
     },
@@ -146,7 +146,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u16, 3, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.de.u16 += self.op.arg;
         }
     },
@@ -154,15 +154,15 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u16, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) void {
-            mem.set(cpu.de.u16, cpu.af.u8.a);
+        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) !void {
+            try mem.set(cpu.de.u16, cpu.af.u8.a);
         }
     },
     JR_S8: struct {
         const Op = OpDesc("JP", i8, 2, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             // TODO: something is wrong here ... either:
             //   - pc needs to be incremented first
             //   - Arg is read incorrectly as -4 instead of -2
@@ -173,7 +173,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("INC e", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @addWithOverflow(cpu.de.u8.b, 1);
             cpu.de.u8.b = res[0];
             cpu.flags.f.z = res[0] == 0;
@@ -184,7 +184,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("JR NZ", i8, 2, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             switch (cpu.flags.f.z) {
                 false => {
                     const pc: i32 = @as(i32, @intCast(cpu.pc.u16)) + self.op.arg;
@@ -198,7 +198,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u16, 3, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.hl.u16 = self.op.arg;
         }
     },
@@ -206,7 +206,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u8, 2, 2);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.hl.u8.a = self.op.arg;
         }
     },
@@ -214,8 +214,8 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u16, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) void {
-            cpu.af.u8.a = mem.get(cpu.hl.u16);
+        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) !void {
+            cpu.af.u8.a = try mem.get(cpu.hl.u16);
             cpu.hl.u16 += 1;
         }
     },
@@ -223,7 +223,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u16, 3, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.sp.u16 = self.op.arg;
         }
     },
@@ -231,8 +231,8 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) void {
-            mem.set(cpu.hl.u16, cpu.af.u8.a);
+        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) !void {
+            try mem.set(cpu.hl.u16, cpu.af.u8.a);
             cpu.hl.u16 -= 1;
         }
     },
@@ -240,7 +240,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u8, 2, 2);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.af.u8.a = self.op.arg;
         }
     },
@@ -248,7 +248,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.bc.u8.a = cpu.af.u8.a;
         }
     },
@@ -256,7 +256,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.af.u8.a = cpu.hl.u8.a;
         }
     },
@@ -264,7 +264,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.af.u8.a = cpu.hl.u8.b;
         }
     },
@@ -272,15 +272,15 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) void {
-            cpu.af.u8.a = mem.get(cpu.hl.u16);
+        pub fn exec(_: @This(), cpu: *CPU, mem: *Memory) !void {
+            cpu.af.u8.a = try mem.get(cpu.hl.u16);
         }
     },
     SUB_H: struct {
         const Op = OpDesc("SUB     a, h    c", void, 1, 2);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.af.u8.a, cpu.hl.u8.a);
             cpu.af.u8.a = res[0];
             cpu.flags.f.z = res[0] == 0;
@@ -291,7 +291,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("XOR    a", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.af.u8.a = 0;
             cpu.flags.f.z = true;
         }
@@ -301,7 +301,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("JP", u16, 3, 4);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.pc.u16 = self.op.arg;
         }
     },
@@ -309,12 +309,12 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("CALL", u16, 3, 6);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) !void {
             // push current pc onto stack
             cpu.sp.u16 -= 1;
-            mem.set(cpu.sp.u16, cpu.pc.u8.a);
+            try mem.set(cpu.sp.u16, cpu.pc.u8.a);
             cpu.sp.u16 -= 1;
-            mem.set(cpu.sp.u16, cpu.pc.u8.b);
+            try mem.set(cpu.sp.u16, cpu.pc.u8.b);
             // std.debug.print("memory: 0x{x}\n", .{memory[0xdff0..0xe000]});
             // std.debug.print("current [sp]: {x}\n", .{memory[cpu.sp.u16]});
 
@@ -326,32 +326,32 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("LD", u8, 2, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) !void {
             // std.debug.print("{any} {x}\n", .{ self, addr });
-            mem.fset(self.op.arg, cpu.af.u8.a);
+            try mem.ffset(self.op.arg, cpu.af.u8.a);
         }
     },
     LD_M_16_A: struct {
         const Op = OpDesc("LD", u16, 3, 4);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) void {
-            mem.set(self.op.arg, cpu.af.u8.a);
+        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) !void {
+            try mem.set(self.op.arg, cpu.af.u8.a);
         }
     },
     LD_A_M8: struct {
         const Op = OpDesc("LD", u8, 2, 3);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) void {
-            cpu.af.u8.a = mem.fget(self.op.arg);
+        pub fn exec(self: @This(), cpu: *CPU, mem: *Memory) !void {
+            cpu.af.u8.a = try mem.ffget(self.op.arg);
         }
     },
     DI: struct {
         const Op = OpDesc("DI", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.flags.f.i = true;
         }
     },
@@ -359,7 +359,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("CP", u8, 1, 1);
         op: Op,
 
-        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) void {
+        pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             // std.debug.print("{f}\n", .{cpu});
             const res = @subWithOverflow(cpu.af.u8.a, self.op.arg);
             cpu.flags.f.z = res[0] == 0;
@@ -371,7 +371,7 @@ pub const Ops = union(OpType) {
         const Op = OpDesc("UKN", void, 1, 1);
         op: Op,
 
-        pub fn exec(_: @This(), _: *CPU, _: *Memory) void {}
+        pub fn exec(_: @This(), _: *CPU, _: *Memory) !void {}
     },
 
     pub fn format(self: Ops, writer: *std.io.Writer) std.io.Writer.Error!void {
@@ -406,11 +406,11 @@ pub const Ops = union(OpType) {
         return error.OpNotFound;
     }
 
-    pub fn exec(self: Ops, cpu: *CPU, mem: *Memory) void {
+    pub fn exec(self: Ops, cpu: *CPU, mem: *Memory) !void {
         switch (self) {
             inline else => |o| {
                 cpu.pc.u16 += @TypeOf(o).Op.bytes;
-                o.exec(cpu, mem);
+                try o.exec(cpu, mem);
             },
         }
     }

@@ -1,4 +1,6 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
+const ROM = @import("rom.zig");
 
 pub const Section = enum(u16) {
     IE = 0xFFFF,
@@ -23,38 +25,45 @@ pub const Section = enum(u16) {
 const Memory = @This();
 
 data: [0x10000]u8 = std.mem.zeroes([0x10000]u8),
+rom: ROM,
 
-pub fn init() Memory {
-    return .{};
+pub fn init(alloc: Allocator, path: []const u8) !Memory {
+    const rom = try ROM.init(alloc, path);
+    std.debug.print("{f}\n", .{rom.header()});
+    return .{
+        .rom = rom,
+    };
 }
 
-pub fn deinit(_: Memory) void {}
+pub fn deinit(self: Memory, alloc: Allocator) void {
+    self.rom.deinit(alloc);
+}
 
-pub fn get(self: Memory, addr: u16) u8 {
-    const section = Section.init(addr);
-    return switch (section) {
+pub fn get(self: Memory, addr: u16) !u8 {
+    return switch (Section.init(addr)) {
+        .BANK_0 => self.rom.data[addr],
         else => self.data[addr],
     };
 }
 
-pub fn fget(self: Memory, addr: u8) u8 {
+pub fn ffget(self: Memory, addr: u8) !u8 {
     return self.get(@intCast(@as(i32, @intCast(0xFF00)) + addr));
 }
 
-pub fn set(self: *Memory, addr: u16, value: anytype) void {
-    const section = Section.init(addr);
-    return switch (section) {
+pub fn set(self: *Memory, addr: u16, value: anytype) !void {
+    return switch (Section.init(addr)) {
+        .BANK_0 => return error.ReadOnlyROM,
         else => self.data[addr] = value,
     };
 }
 
-pub fn fset(self: *Memory, addr: u8, value: anytype) void {
-    self.set(@intCast(@as(i32, @intCast(0xFF00)) + addr), value);
+pub fn ffset(self: *Memory, addr: u8, value: anytype) !void {
+    try self.set(@intCast(@as(i32, @intCast(0xFF00)) + addr), value);
 }
 
 pub fn slice(self: *Memory, addr: u16) []u8 {
-    const section = Section.init(addr);
-    return switch (section) {
-        else => self.data[addr..],
+    return switch (Section.init(addr)) {
+        .BANK_0 => self.rom.data[addr..],
+        else => |e| std.debug.panic("Not implemented: {any}", .{e}),
     };
 }

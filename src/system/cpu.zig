@@ -19,7 +19,7 @@ const Flags = packed union {
 
     pub fn format(self: Flags, writer: *std.io.Writer) std.io.Writer.Error!void {
         try writer.print(
-            " flags: {{ n: {}, v: {}, d: {} i: {}, z: {}, c: {} }}",
+            "{{ n: {}, v: {}, d: {} i: {}, z: {}, c: {} }}",
             .{ self.f.n, self.f.v, self.f.d, self.f.i, self.f.z, self.f.c },
         );
     }
@@ -45,14 +45,14 @@ de: Register = Zero,
 hl: Register = Zero,
 
 pub fn step(self: *CPU, mem: *Memory) !void {
-    const opt = std.meta.intToEnum(Ops.OpType, mem.get(self.pc.u16)) catch {
-        std.debug.panic("Unsupported instruction: 0x{x}", .{mem.get(self.pc.u16)});
+    const opt = std.meta.intToEnum(Ops.OpType, try mem.get(self.pc.u16)) catch {
+        std.debug.panic("Unsupported instruction: 0x{x}", .{try mem.get(self.pc.u16)});
     };
     const op = switch (opt) {
         inline else => |t| try Ops.Ops.init(t, mem.slice(self.pc.u16)),
     };
     std.debug.print("0x{x:0>4}    {f}\n", .{ self.pc.u16, op });
-    op.exec(self, mem);
+    try op.exec(self, mem);
     // std.debug.print("{f}\n", .{cpu});
 }
 

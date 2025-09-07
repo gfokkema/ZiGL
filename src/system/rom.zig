@@ -4,9 +4,9 @@ const CPU = @import("cpu.zig");
 
 const ROM = @This();
 
-const HDROFFS = 0x100;
-const HDREND = 0x14F;
-const MAXBUFF = 16 * 1024 * 1024;
+const HDR_OFFS = 0x100;
+const HDR_END = 0x14F;
+const MAX_BUFF = 16 * 1024 * 1024;
 
 const Size = u8;
 const Cartridge = enum(u8) {
@@ -92,13 +92,15 @@ const Header = extern struct {
 
 data: []u8,
 
-pub fn init(rom: []const u8, data: []u8) !ROM {
-    _ = try std.fs.cwd().readFile(rom, data);
+pub fn init(alloc: Allocator, path: []const u8) !ROM {
+    const data = try std.fs.cwd().readFileAlloc(alloc, path, MAX_BUFF);
     return .{ .data = data };
 }
 
-pub fn deinit(_: ROM) void {}
+pub fn deinit(self: ROM, alloc: Allocator) void {
+    alloc.free(self.data);
+}
 
 pub fn header(self: *const ROM) *Header {
-    return @ptrCast(@alignCast(self.data[HDROFFS .. HDROFFS + HDREND].ptr));
+    return @ptrCast(@alignCast(self.data[HDR_OFFS .. HDR_OFFS + HDR_END].ptr));
 }
