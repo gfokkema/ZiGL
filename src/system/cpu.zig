@@ -57,7 +57,8 @@ pub fn step(self: *CPU, mem: *Memory) !void {
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
-    try writer.print("   pc: {f}   sp: {f}\n", .{ self.pc, self.sp });
-    try writer.print("   af: {f}   bc: {f}   de: {f}   hl: {f} }} }}\n", .{ self.af, self.bc, self.de, self.hl });
-    try writer.print("   flags: {f}", .{self.flags});
+    try writer.print("pc: {f}   sp: {f}\n", .{ self.pc, self.sp });
+    try writer.print("af: {f}   bc: {f}\n", .{ self.af, self.bc });
+    try writer.print("de: {f}   hl: {f}\n", .{ self.de, self.hl });
+    try writer.print("flags: {f}", .{self.flags});
 }

@@ -27,17 +27,13 @@ const Memory = @This();
 data: [0x10000]u8 = std.mem.zeroes([0x10000]u8),
 rom: ROM,
 
-pub fn init(alloc: Allocator, path: []const u8) !Memory {
-    const rom = try ROM.init(alloc, path);
-    std.debug.print("{f}\n", .{rom.header()});
+pub fn init(rom: ROM) !Memory {
     return .{
         .rom = rom,
     };
 }
 
-pub fn deinit(self: Memory, alloc: Allocator) void {
-    self.rom.deinit(alloc);
-}
+pub fn deinit(_: Memory) void {}
 
 pub fn get(self: Memory, addr: u16) !u8 {
     return switch (Section.init(addr)) {

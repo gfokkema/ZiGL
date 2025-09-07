@@ -13,10 +13,16 @@ gui: ImGui = undefined,
 queue: *GLFW.Queue = undefined,
 window: *c.GLFWwindow = undefined,
 
-const WindowArgs = struct {
+const Layout = struct {
+    menu: ?ImGui.Menu = undefined,
+    root: ?ImGui.Root = undefined,
+};
+
+pub const WindowArgs = struct {
     width: c_int = 1280,
     height: c_int = 720,
     title: []const u8 = "My Title",
+    layout: Layout = .{},
 };
 
 pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
@@ -42,7 +48,7 @@ pub fn init(alloc: Allocator, queue: *GLFW.Queue, args: WindowArgs) !*Window {
 
     self.* = .{
         .alloc = alloc,
-        .gui = try ImGui.init(window),
+        .gui = try ImGui.init(window, args.layout.menu, args.layout.root),
         .queue = queue,
         .window = window,
     };

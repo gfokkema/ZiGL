@@ -51,8 +51,8 @@ pub fn deinit(self: *GLFW, alloc: Allocator) void {
     self.queue.deinit(alloc);
 }
 
-pub fn window(self: *GLFW, alloc: Allocator) !*Window {
-    return try Window.init(alloc, self.queue, .{});
+pub fn window(self: *GLFW, alloc: Allocator, args: Window.WindowArgs) !*Window {
+    return try Window.init(alloc, self.queue, args);
 }
 
 pub fn error_callback(err: c_int, c_desc: [*c]const u8) callconv(.c) void {

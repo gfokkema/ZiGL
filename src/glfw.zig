@@ -55,7 +55,7 @@ pub fn main() !void {
     var glfw = try GLFW.init(alloc);
     defer glfw.deinit(alloc);
 
-    var window = try glfw.window(alloc);
+    var window = try glfw.window(alloc, .{});
     defer window.deinit(alloc);
 
     var context = GL.Context(GLFW.Window).init(window);
