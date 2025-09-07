@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const IO = @import("io.zig");
 const ROM = @import("rom.zig");
 
 pub const Section = enum(u16) {
@@ -26,10 +27,12 @@ const Memory = @This();
 
 data: [0x10000]u8 = std.mem.zeroes([0x10000]u8),
 rom: ROM,
+io: IO,
 
 pub fn init(rom: ROM) !Memory {
     return .{
         .rom = rom,
+        .io = IO{},
     };
 }
 
@@ -38,23 +41,25 @@ pub fn deinit(_: Memory) void {}
 pub fn get(self: Memory, addr: u16) !u8 {
     return switch (Section.init(addr)) {
         .BANK_0 => self.rom.data[addr],
+        .IO => return self.io.get(addr),
         else => self.data[addr],
     };
 }
 
 pub fn ffget(self: Memory, addr: u8) !u8 {
-    return self.get(@intCast(@as(i32, @intCast(0xFF00)) + addr));
+    return self.get(@as(u16, @intCast(addr)) + 0xFF00);
 }
 
 pub fn set(self: *Memory, addr: u16, value: anytype) !void {
-    return switch (Section.init(addr)) {
+    switch (Section.init(addr)) {
         .BANK_0 => return error.ReadOnlyROM,
+        .IO => return self.io.set(addr, value),
         else => self.data[addr] = value,
-    };
+    }
 }
 
 pub fn ffset(self: *Memory, addr: u8, value: anytype) !void {
-    try self.set(@intCast(@as(i32, @intCast(0xFF00)) + addr), value);
+    try self.set(@as(u16, @intCast(addr)) + 0xFF00, value);
 }
 
 pub fn slice(self: *Memory, addr: u16) []u8 {

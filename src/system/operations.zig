@@ -128,7 +128,7 @@ pub const Ops = union(OpType) {
 
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.bc.u8.b, 1);
-            std.debug.print("{any}\n", .{res});
+            // std.debug.print("{any}\n", .{res});
             cpu.bc.u8.b = res[0];
             cpu.flags.f.z = res[0] == 0;
             cpu.flags.f.c = res[1] > 0;
@@ -356,7 +356,7 @@ pub const Ops = union(OpType) {
         }
     },
     CP_D8: struct {
-        const Op = OpDesc("CP", u8, 1, 1);
+        const Op = OpDesc("CP", u8, 2, 2);
         op: Op,
 
         pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
@@ -392,6 +392,7 @@ pub const Ops = union(OpType) {
             .LD_M_16_A => |e| try writer.print("{s:<6} [${x:0>4}], a", .{ @TypeOf(e.op).name, e.op.arg }),
             .LD_M_HLD_A => |e| try writer.print("{s:<6} [HLD], a", .{@TypeOf(e.op).name}),
             .CALL_16 => |e| try writer.print("{s:<6} ${x:0>4}", .{ @TypeOf(e.op).name, e.op.arg }),
+            .CP_D8 => |e| try writer.print("{s:<6} ${x:0>2}", .{ @TypeOf(e.op).name, e.op.arg }),
             inline else => |e| try writer.print("{s:<6}", .{@TypeOf(e.op).name}),
         }
     }

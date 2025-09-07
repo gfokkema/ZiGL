@@ -44,14 +44,17 @@ bc: Register = Zero,
 de: Register = Zero,
 hl: Register = Zero,
 
-pub fn step(self: *CPU, mem: *Memory) !void {
+pub fn next(self: *CPU, mem: *Memory) !Ops.Ops {
     const opt = std.meta.intToEnum(Ops.OpType, try mem.get(self.pc.u16)) catch {
         std.debug.panic("Unsupported instruction: 0x{x}", .{try mem.get(self.pc.u16)});
     };
-    const op = switch (opt) {
+    return switch (opt) {
         inline else => |t| try Ops.Ops.init(t, mem.slice(self.pc.u16)),
     };
-    std.debug.print("0x{x:0>4}    {f}\n", .{ self.pc.u16, op });
+}
+
+pub fn step(self: *CPU, mem: *Memory) !void {
+    const op = try self.next(mem);
     try op.exec(self, mem);
     // std.debug.print("{f}\n", .{cpu});
 }

@@ -19,7 +19,7 @@ const Layout = struct {
 };
 
 pub const WindowArgs = struct {
-    width: c_int = 1280,
+    width: c_int = 720,
     height: c_int = 720,
     title: []const u8 = "My Title",
     layout: Layout = .{},

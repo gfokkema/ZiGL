@@ -12,6 +12,15 @@ const Args = struct {
     const path = "res/tetris.gb";
 };
 
+const Actions = struct {
+    pub fn desc(ctx: *anyopaque, buf: []u8) []const u8 {
+        const cpu: *System.CPU = @ptrCast(@alignCast(ctx));
+        return std.fmt.bufPrint(buf, "{f}", .{cpu}) catch {
+            return "ERROR: NO CPU";
+        };
+    }
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == Check.ok);
@@ -22,6 +31,8 @@ pub fn main() !void {
 
     var system = try System.init(alloc, Args.path);
     defer system.deinit(alloc);
+    std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
+    for (0..0x10 * 0x100 * 3) |_| try system.step();
 
     const menu = GLFW.ImGui.Menu.init("File", &.{
         .{ .label = "Create" },
@@ -35,22 +46,13 @@ pub fn main() !void {
     const name = try std.fmt.allocPrint(alloc, "name: {s}\n", .{system.rom.header().title});
     defer alloc.free(name);
 
-    const DescCPU = struct {
-        pub fn desc(ctx: *anyopaque, buf: []u8) []const u8 {
-            const cpu: *System.CPU = @ptrCast(@alignCast(ctx));
-            return std.fmt.bufPrint(buf, "{f}", .{cpu}) catch {
-                return "ERROR: NO CPU";
-            };
-        }
-    };
-
     const root = GLFW.ImGui.Root.init(&.{
         GLFW.ImGui.Tree.init("ROM", &.{
             GLFW.ImGui.Text.init(path),
             GLFW.ImGui.Text.init(name),
         }),
         GLFW.ImGui.Tree.init("CPU", &.{
-            GLFW.ImGui.DynamicText.init(&system.cpu, DescCPU.desc),
+            GLFW.ImGui.DynamicText.init(&system.cpu, Actions.desc),
         }),
     });
 
@@ -63,6 +65,8 @@ pub fn main() !void {
 
     var camera = Camera.init(.{});
     while (!window.is_close()) {
+        context.draw(camera.mvp(), 72);
+
         while (glfw.queue.pop()) |e| {
             switch (e) {
                 .err => {},
@@ -74,17 +78,24 @@ pub fn main() !void {
                     .RIGHT => camera.move(zlm.vec3(0.1, 0, 0)),
                     .LEFT => camera.move(zlm.vec3(-0.1, 0, 0)),
                     .P, .R => std.debug.print("{f}\n", .{system.cpu}),
-                    .S, .N => try system.step(),
+                    .S, .N => {
+                        try system.step();
+                        std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
+                    },
                     else => std.debug.print("key: `{any}` not implemented yet\n", .{k}),
                 },
-                .key_repeat => {},
+                .key_repeat => |k| switch (k) {
+                    .S, .N => {
+                        try system.step();
+                        std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
+                    },
+                    else => {},
+                },
                 .key_up => {},
                 .mouse_down => {},
                 .mouse_up => {},
             }
         }
-
-        context.draw(camera.mvp(), 72);
 
         window.render();
         window.swap();
