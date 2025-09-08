@@ -167,6 +167,12 @@ pub fn init(window: *c.GLFWwindow, menu: ?Menu, root: ?Root) !ImGui {
     if (!c.ImGui_ImplGlfw_InitForOpenGL(window, true)) return error.InitImGuiGlfw;
     errdefer c.ImGui_ImplGlfw_Shutdown();
 
+    const style = c.igGetStyle();
+    c.igStyleColorsDark(style);
+    c.ImGuiStyle_ScaleAllSizes(style, 1);
+    const io = c.igGetIO();
+    io.*.FontGlobalScale = 1.5;
+
     if (!c.ImGui_ImplOpenGL3_Init("#version 130")) return error.InitImGuiOgl;
     errdefer c.ImGui_ImplOpenGL3_Shutdown();
 

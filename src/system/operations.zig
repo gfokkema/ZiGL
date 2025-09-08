@@ -99,8 +99,8 @@ pub const Ops = union(OpType) {
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @addWithOverflow(cpu.bc.u8.a, 1);
             cpu.bc.u8.a = res[0];
-            cpu.flags.f.c = res[1] > 0;
-            cpu.flags.f.z = res[1] == 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
         }
     },
     DEC_B: struct {
@@ -110,8 +110,8 @@ pub const Ops = union(OpType) {
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.bc.u8.a, 1);
             cpu.bc.u8.a = res[0];
-            cpu.flags.f.z = res[0] == 0;
-            cpu.flags.f.c = res[1] > 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
         }
     },
     LD_B_D8: struct {
@@ -130,8 +130,8 @@ pub const Ops = union(OpType) {
             const res = @subWithOverflow(cpu.bc.u8.b, 1);
             // std.debug.print("{any}\n", .{res});
             cpu.bc.u8.b = res[0];
-            cpu.flags.f.z = res[0] == 0;
-            cpu.flags.f.c = res[1] > 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
         }
     },
     LD_C_D8: struct {
@@ -176,8 +176,8 @@ pub const Ops = union(OpType) {
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @addWithOverflow(cpu.de.u8.b, 1);
             cpu.de.u8.b = res[0];
-            cpu.flags.f.z = res[0] == 0;
-            cpu.flags.f.c = res[1] > 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
         }
     },
     JR_NZ: struct {
@@ -185,7 +185,7 @@ pub const Ops = union(OpType) {
         op: Op,
 
         pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
-            switch (cpu.flags.f.z) {
+            switch (cpu.af.fu8.flags.z) {
                 false => {
                     const pc: i32 = @as(i32, @intCast(cpu.pc.u16)) + self.op.arg;
                     cpu.pc.u16 = @intCast(pc);
@@ -283,8 +283,8 @@ pub const Ops = union(OpType) {
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             const res = @subWithOverflow(cpu.af.u8.a, cpu.hl.u8.a);
             cpu.af.u8.a = res[0];
-            cpu.flags.f.z = res[0] == 0;
-            cpu.flags.f.c = res[1] > 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
         }
     },
     XOR_A: struct {
@@ -293,7 +293,7 @@ pub const Ops = union(OpType) {
 
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
             cpu.af.u8.a = 0;
-            cpu.flags.f.z = true;
+            cpu.af.fu8.flags.z = true;
         }
     },
 
@@ -352,7 +352,7 @@ pub const Ops = union(OpType) {
         op: Op,
 
         pub fn exec(_: @This(), cpu: *CPU, _: *Memory) !void {
-            cpu.flags.f.i = true;
+            cpu.ime = .false;
         }
     },
     CP_D8: struct {
@@ -362,8 +362,8 @@ pub const Ops = union(OpType) {
         pub fn exec(self: @This(), cpu: *CPU, _: *Memory) !void {
             // std.debug.print("{f}\n", .{cpu});
             const res = @subWithOverflow(cpu.af.u8.a, self.op.arg);
-            cpu.flags.f.z = res[0] == 0;
-            cpu.flags.f.c = res[1] > 0;
+            cpu.af.fu8.flags.z = res[0] == 0;
+            cpu.af.fu8.flags.c = res[1] > 0;
             // std.debug.print("{f}\n", .{cpu});
         }
     },

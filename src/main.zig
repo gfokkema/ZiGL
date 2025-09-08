@@ -80,14 +80,12 @@ pub fn main() !void {
                     .P, .R => std.debug.print("{f}\n", .{system.cpu}),
                     .S, .N => {
                         try system.step();
-                        std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
                     },
                     else => std.debug.print("key: `{any}` not implemented yet\n", .{k}),
                 },
                 .key_repeat => |k| switch (k) {
                     .S, .N => {
                         try system.step();
-                        std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
                     },
                     else => {},
                 },
