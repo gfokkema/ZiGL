@@ -9,3 +9,6 @@
 [submodule "stb"]
 	path = res/stb
 	url = git@github.com:nothings/stb.git
+[submodule "res/sm83"]
+	path = res/sm83
+	url = https://github.com/SingleStepTests/sm83

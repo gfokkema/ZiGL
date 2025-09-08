@@ -29,6 +29,7 @@ pub fn deinit(self: System, alloc: Allocator) void {
 }
 
 pub fn step(self: *System) !void {
-    try self.cpu.step(&self.memory);
+    const op = try self.cpu.next(&self.memory);
+    try self.cpu.step(&self.memory, op);
     std.debug.print("0x{x:0>4}    {f}\n", .{ self.cpu.pc.u16, try self.cpu.next(&self.memory) });
 }

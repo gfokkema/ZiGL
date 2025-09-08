@@ -76,10 +76,19 @@ pub fn next(self: *CPU, mem: *Memory) !Ops.Ops {
     };
 }
 
-pub fn step(self: *CPU, mem: *Memory) !void {
-    const op = try self.next(mem);
+pub fn step(self: *CPU, mem: *Memory, op: Ops.Ops) !void {
     try op.exec(self, mem);
     // std.debug.print("{f}\n", .{cpu});
+}
+
+pub fn equals(self: CPU, other: CPU) bool {
+    return self.pc.u16 == other.pc.u16 and
+        self.sp.u16 == other.sp.u16 and
+        self.af.u16 == other.af.u16 and
+        self.bc.u16 == other.bc.u16 and
+        self.de.u16 == other.de.u16 and
+        self.hl.u16 == other.hl.u16 and
+        self.ime == other.ime;
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
@@ -88,4 +97,63 @@ pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
     try writer.print("de: {f}   hl: {f}\n", .{ self.de, self.hl });
     try writer.print("flags: {f}\n", .{self.af.fu8.flags});
     try writer.print("ime: {s}", .{@tagName(self.ime)});
+}
+
+test "test_1" {
+    const State = struct {
+        pc: u16,
+        sp: u16,
+        a: u8,
+        b: u8,
+        c: u8,
+        d: u8,
+        e: u8,
+        f: u8,
+        h: u8,
+        l: u8,
+        ime: u8,
+        ie: u8 = 0,
+        ram: []const []u16,
+    };
+    const Cycle = struct { u16, u16, []const u8 };
+    const TestCase = struct {
+        name: []const u8,
+        initial: State,
+        final: State,
+        cycles: []const Cycle,
+    };
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const alloc = gpa.allocator();
+
+    const data = @embedFile("./sm83/v1/00.json");
+    const json = try std.json.parseFromSlice([]const TestCase, alloc, data, .{});
+    defer json.deinit();
+
+    for (json.value) |case| {
+        std.debug.print("name: {s}\n", .{case.name});
+        const i = case.initial;
+        var initial = CPU{
+            .pc = Register.init_u16(i.pc),
+            .sp = Register.init_u16(i.sp),
+            .af = Register.init_u8(i.a, i.f),
+            .bc = Register.init_u8(i.b, i.c),
+            .de = Register.init_u8(i.d, i.e),
+            .hl = Register.init_u8(i.h, i.l),
+            .ime = @enumFromInt(i.ime),
+        };
+
+        // var mem = Memory{ .io = undefined, .rom = undefined };
+
+        const f = case.final;
+        const final = CPU{
+            .pc = Register.init_u16(f.pc),
+            .sp = Register.init_u16(f.sp),
+            .af = Register.init_u8(f.a, f.f),
+            .bc = Register.init_u8(f.b, f.c),
+            .de = Register.init_u8(f.d, f.e),
+            .hl = Register.init_u8(f.h, f.l),
+        };
+        try std.testing.expect(initial.equals(final));
+    }
 }

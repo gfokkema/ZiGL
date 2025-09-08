@@ -64,7 +64,8 @@ pub fn ffset(self: *Memory, addr: u8, value: anytype) !void {
 
 pub fn slice(self: *Memory, addr: u16) []u8 {
     return switch (Section.init(addr)) {
-        .BANK_0 => self.rom.data[addr..],
-        else => |e| std.debug.panic("Not implemented: {any}", .{e}),
+        // .BANK_0 => self.rom.data[addr..],
+        // else => |e| std.debug.panic("Not implemented: {any}", .{e}),
+        else => self.rom.data[addr..],
     };
 }
