@@ -9,7 +9,7 @@ const Flags = packed struct {
     _: u4 = 0,
     c: bool = false,
     h: bool = false,
-    n: bool = false,
+    n: enum(u1) { dec = 1, inc = 0 },
     z: bool = false,
 
     pub fn format(self: Flags, writer: *std.io.Writer) std.io.Writer.Error!void {
@@ -60,35 +60,26 @@ pub fn init_dmg() CPU {
         .pc = Register.init_u16(0x100),
         .sp = Register.init_u16(0xfffe),
 
-        .af = Register.init_u8(0x01, @bitCast(Flags{ .c = true, .h = true, .n = false, .z = true })),
+        .af = Register.init_u8(0x01, @bitCast(Flags{
+            .c = true,
+            .h = true,
+            .n = .inc,
+            .z = true,
+        })),
         .bc = Register.init_u8(0x00, 0x13),
         .de = Register.init_u8(0x00, 0xd8),
         .hl = Register.init_u8(0x01, 0x4d),
     };
 }
 
-pub fn next(self: *CPU, mem: *Memory) !Ops.Ops {
-    const opt = std.meta.intToEnum(Ops.OpType, try mem.get(self.pc.u16)) catch {
-        std.debug.panic("Unsupported instruction: 0x{x}", .{try mem.get(self.pc.u16)});
+pub fn next(self: *CPU, mem: anytype) !Ops.Ops {
+    const opcode = try mem.get(self.pc.u16);
+    const opt = std.meta.intToEnum(Ops.OpType, opcode) catch {
+        std.debug.panic("Unsupported instruction: 0x{x}", .{opcode});
     };
     return switch (opt) {
         inline else => |t| try Ops.Ops.init(t, mem.slice(self.pc.u16)),
     };
-}
-
-pub fn step(self: *CPU, mem: *Memory, op: Ops.Ops) !void {
-    try op.exec(self, mem);
-    // std.debug.print("{f}\n", .{cpu});
-}
-
-pub fn equals(self: CPU, other: CPU) bool {
-    return self.pc.u16 == other.pc.u16 and
-        self.sp.u16 == other.sp.u16 and
-        self.af.u16 == other.af.u16 and
-        self.bc.u16 == other.bc.u16 and
-        self.de.u16 == other.de.u16 and
-        self.hl.u16 == other.hl.u16 and
-        self.ime == other.ime;
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
@@ -99,8 +90,9 @@ pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
     try writer.print("ime: {s}", .{@tagName(self.ime)});
 }
 
-test "test_1" {
+const TestData = struct {
     const State = struct {
+        const RAM = struct { u16, u8 };
         pc: u16,
         sp: u16,
         a: u8,
@@ -113,47 +105,107 @@ test "test_1" {
         l: u8,
         ime: u8,
         ie: u8 = 0,
-        ram: []const []u16,
+        ram: []const RAM,
     };
+
     const Cycle = struct { u16, u16, []const u8 };
+
     const TestCase = struct {
         name: []const u8,
         initial: State,
         final: State,
         cycles: []const Cycle,
     };
+};
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const alloc = gpa.allocator();
-
-    const data = @embedFile("./sm83/v1/00.json");
-    const json = try std.json.parseFromSlice([]const TestCase, alloc, data, .{});
+fn run_test(data: []const u8) !void {
+    const alloc = std.testing.allocator;
+    const json = try std.json.parseFromSlice([]const TestData.TestCase, alloc, data, .{});
     defer json.deinit();
 
     for (json.value) |case| {
-        std.debug.print("name: {s}\n", .{case.name});
-        const i = case.initial;
-        var initial = CPU{
-            .pc = Register.init_u16(i.pc),
-            .sp = Register.init_u16(i.sp),
-            .af = Register.init_u8(i.a, i.f),
-            .bc = Register.init_u8(i.b, i.c),
-            .de = Register.init_u8(i.d, i.e),
-            .hl = Register.init_u8(i.h, i.l),
-            .ime = @enumFromInt(i.ime),
-        };
+        // std.debug.print("name: {s}\n\n", .{case.name});
 
-        // var mem = Memory{ .io = undefined, .rom = undefined };
-
-        const f = case.final;
-        const final = CPU{
-            .pc = Register.init_u16(f.pc),
-            .sp = Register.init_u16(f.sp),
-            .af = Register.init_u8(f.a, f.f),
-            .bc = Register.init_u8(f.b, f.c),
-            .de = Register.init_u8(f.d, f.e),
-            .hl = Register.init_u8(f.h, f.l),
+        var cpu_a = CPU{
+            .pc = Register.init_u16(case.initial.pc),
+            .sp = Register.init_u16(case.initial.sp),
+            .af = Register.init_u8(case.initial.a, case.initial.f),
+            .bc = Register.init_u8(case.initial.b, case.initial.c),
+            .de = Register.init_u8(case.initial.d, case.initial.e),
+            .hl = Register.init_u8(case.initial.h, case.initial.l),
+            .ime = @enumFromInt(case.initial.ime),
         };
-        try std.testing.expect(initial.equals(final));
+        // std.debug.print("start: {f}\n\n", .{cpu_a});
+
+        var mem = Memory.Linear{};
+        for (case.initial.ram) |v| mem.data[v[0]] = v[1];
+
+        const op = try cpu_a.next(&mem);
+        // std.debug.print("op: {f}\n", .{op});
+
+        try op.exec(&cpu_a, &mem);
+
+        const cpu_b = CPU{
+            .pc = Register.init_u16(case.final.pc),
+            .sp = Register.init_u16(case.final.sp),
+            .af = Register.init_u8(case.final.a, case.final.f),
+            .bc = Register.init_u8(case.final.b, case.final.c),
+            .de = Register.init_u8(case.final.d, case.final.e),
+            .hl = Register.init_u8(case.final.h, case.final.l),
+            .ime = @enumFromInt(case.initial.ime),
+        };
+        // std.debug.print("\ncpu: {f}\n\n", .{cpu_a});
+        // std.debug.print("expect: {f}\n\n", .{cpu_b});
+
+        try std.testing.expectEqual(cpu_a, cpu_b);
+
+        for (0.., mem.data) |a_idx, a_val| {
+            var found = false;
+            for (case.final.ram[0..]) |b| {
+                if (a_idx == b[0]) {
+                    std.testing.expect(a_val == b[1]) catch {
+                        std.debug.print("a_ram: {any}\n", .{case.initial.ram});
+                        std.debug.print("b_ram: {any}\n", .{case.final.ram});
+                        std.debug.print("a: {d}\n", .{a_idx});
+                        std.debug.print("b: {d}\n", .{b[0]});
+                        std.debug.print("a_val: {any}: ", .{a_val});
+                        std.debug.print("b_val: {any}: ", .{b[1]});
+                    };
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) try std.testing.expectEqual(a_val, 0);
+        }
     }
+}
+
+test "test_NOP" {
+    const data = @embedFile("./sm83/v1/00.json");
+    try run_test(data);
+}
+
+test "test_LD_BC_D16" {
+    const data = @embedFile("./sm83/v1/01.json");
+    try run_test(data);
+}
+
+test "test_LD_BC_A" {
+    const data = @embedFile("./sm83/v1/02.json");
+    try run_test(data);
+}
+
+test "test_INC_BC" {
+    const data = @embedFile("./sm83/v1/03.json");
+    try run_test(data);
+}
+
+test "test_INC_B" {
+    const data = @embedFile("./sm83/v1/04.json");
+    try run_test(data);
+}
+
+test "test_DEC_B" {
+    const data = @embedFile("./sm83/v1/05.json");
+    try run_test(data);
 }

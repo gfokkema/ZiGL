@@ -29,9 +29,8 @@ pub fn main() !void {
     var glfw = try GLFW.init(alloc);
     defer glfw.deinit(alloc);
 
-    var system = try System.init(alloc, Args.path);
+    var system = try System.System.initAlloc(alloc, Args.path);
     defer system.deinit(alloc);
-    std.debug.print("0x{x:0>4}    {f}\n", .{ system.cpu.pc.u16, try system.cpu.next(&system.memory) });
     for (0..0x10 * 0x100 * 3) |_| try system.step();
 
     const menu = GLFW.ImGui.Menu.init("File", &.{
@@ -43,7 +42,7 @@ pub fn main() !void {
 
     const path = try std.fmt.allocPrint(alloc, "path: {s}\n", .{Args.path});
     defer alloc.free(path);
-    const name = try std.fmt.allocPrint(alloc, "name: {s}\n", .{system.rom.header().title});
+    const name = try std.fmt.allocPrint(alloc, "name: {s}\n", .{system.memory.rom.header().title});
     defer alloc.free(name);
 
     const root = GLFW.ImGui.Root.init(&.{

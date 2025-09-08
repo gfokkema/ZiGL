@@ -5,31 +5,39 @@ pub const CPU = @import("cpu.zig");
 pub const Memory = @import("memory.zig");
 pub const ROM = @import("rom.zig");
 
-const System = @This();
+pub const System = GenericSystem(Memory.Mapper);
+pub const MemorySystem = GenericSystem(Memory.Linear);
 
-cpu: CPU,
-memory: Memory,
-rom: ROM,
+pub fn GenericSystem(comptime M: type) type {
+    return struct {
+        const Self = @This();
+        cpu: CPU,
+        memory: M,
 
-pub fn init(alloc: Allocator, path: []const u8) !System {
-    const rom = try ROM.init(alloc, path);
-    std.debug.print("{f}\n", .{rom.header()});
-    // try rom.check();
-    // rom.header().checksum();
-    return .{
-        .cpu = CPU.init_dmg(),
-        .memory = try Memory.init(rom),
-        .rom = rom,
+        pub fn init(cpu: CPU, memory: M) !System {
+            return .{
+                .cpu = cpu,
+                .memory = memory,
+            };
+        }
+
+        pub fn initAlloc(alloc: Allocator, path: []const u8) !Self {
+            const rom = try ROM.init(alloc, path);
+            std.debug.print("{f}\n", .{rom.header()});
+            // try rom.check();
+            // rom.header).checksum();
+            return init(CPU.init_dmg(), Memory.Mapper.init(rom));
+        }
+
+        pub fn deinit(self: *Self, alloc: Allocator) void {
+            self.memory.deinit(alloc);
+        }
+
+        pub fn step(self: *Self) !void {
+            const op = try self.cpu.next(&self.memory);
+            try op.exec(&self.cpu, &self.memory);
+
+            std.debug.print("0x{x:0>4}: {f}\n", .{ self.cpu.pc.u16, try self.cpu.next(&self.memory) });
+        }
     };
-}
-
-pub fn deinit(self: System, alloc: Allocator) void {
-    self.rom.deinit(alloc);
-    self.memory.deinit();
-}
-
-pub fn step(self: *System) !void {
-    const op = try self.cpu.next(&self.memory);
-    try self.cpu.step(&self.memory, op);
-    std.debug.print("0x{x:0>4}    {f}\n", .{ self.cpu.pc.u16, try self.cpu.next(&self.memory) });
 }
