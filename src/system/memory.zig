@@ -66,21 +66,24 @@ pub const Mapper = struct {
     rom: ROM,
     io: IO,
 
-    pub fn init(rom: ROM) Mapper {
-        return .{
+    pub fn init(alloc: Allocator, rom: ROM) !*Mapper {
+        const ret = try alloc.create(Mapper);
+        ret.* = .{
             .rom = rom,
-            .io = IO{},
+            .io = IO.init(&ret.data, @intFromEnum(Section.IO)),
         };
+        return ret;
     }
 
     pub fn deinit(self: *Mapper, alloc: Allocator) void {
         self.rom.deinit(alloc);
+        alloc.destroy(self);
     }
 
-    pub fn get(self: Mapper, addr: u16) !u8 {
+    pub fn get(self: *Mapper, addr: u16) !u8 {
         return switch (Section.init(addr)) {
             .BANK_0 => self.rom.data[addr],
-            .IO => return self.io.get(addr),
+            .IO => self.io.get(addr - @intFromEnum(Section.IO)),
             else => self.data[addr],
         };
     }
@@ -88,7 +91,7 @@ pub const Mapper = struct {
     pub fn set(self: *Mapper, addr: u16, value: anytype) !void {
         switch (Section.init(addr)) {
             .BANK_0 => return error.ReadOnlyROM,
-            .IO => return self.io.set(addr, value),
+            .IO => try self.io.set(addr - @intFromEnum(Section.IO), value),
             else => self.data[addr] = value,
         }
     }
@@ -96,8 +99,8 @@ pub const Mapper = struct {
     pub fn slice(self: *Mapper, addr: u16) []u8 {
         return switch (Section.init(addr)) {
             .BANK_0 => self.rom.data[addr..],
-            else => |e| std.debug.panic("Not implemented: {any}", .{e}),
-            // else => self.data[addr..],
+            // else => |e| std.debug.panic("Not implemented: {any}", .{e}),
+            else => self.data[addr..],
         };
     }
 };

@@ -14,9 +14,19 @@ const Args = struct {
 
 const Actions = struct {
     pub fn desc(ctx: *anyopaque, buf: []u8) []const u8 {
-        const cpu: *System.CPU = @ptrCast(@alignCast(ctx));
-        return std.fmt.bufPrint(buf, "{f}", .{cpu}) catch {
+        const system: *System.System = @ptrCast(@alignCast(ctx));
+        return std.fmt.bufPrint(buf, "{f}", .{system.cpu}) catch {
             return "ERROR: NO CPU";
+        };
+    }
+    pub fn memory(ctx: *anyopaque, buf: []u8) []const u8 {
+        const system: *System.System = @ptrCast(@alignCast(ctx));
+        return std.fmt.bufPrint(buf, "interrupts: {any}\nraw: 0x{x:0>2}\nval: 0x{x:0>2}", .{
+            system.memory.io.mapper.*.m.int_flags,
+            system.memory.data[0xFF0F],
+            system.memory.io.mapper.val[0x0F],
+        }) catch {
+            return "ERROR: NO MEMORY";
         };
     }
 };
@@ -51,7 +61,8 @@ pub fn main() !void {
             GLFW.ImGui.Text.init(name),
         }),
         GLFW.ImGui.Tree.init("CPU", &.{
-            GLFW.ImGui.DynamicText.init(&system.cpu, Actions.desc),
+            GLFW.ImGui.DynamicText.init(&system, Actions.desc),
+            GLFW.ImGui.DynamicText.init(&system, Actions.memory),
         }),
     });
 

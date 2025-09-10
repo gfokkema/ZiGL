@@ -11,10 +11,11 @@ pub const MemorySystem = GenericSystem(Memory.Linear);
 pub fn GenericSystem(comptime M: type) type {
     return struct {
         const Self = @This();
-        cpu: CPU,
-        memory: M,
 
-        pub fn init(cpu: CPU, memory: M) !System {
+        cpu: CPU,
+        memory: *M,
+
+        pub fn init(cpu: CPU, memory: *M) !System {
             return .{
                 .cpu = cpu,
                 .memory = memory,
@@ -26,7 +27,8 @@ pub fn GenericSystem(comptime M: type) type {
             std.debug.print("{f}\n", .{rom.header()});
             // try rom.check();
             // rom.header).checksum();
-            return init(CPU.init_dmg(), Memory.Mapper.init(rom));
+
+            return init(CPU.init_dmg(), try Memory.Mapper.init(alloc, rom));
         }
 
         pub fn deinit(self: *Self, alloc: Allocator) void {

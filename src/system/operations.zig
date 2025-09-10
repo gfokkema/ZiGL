@@ -3,20 +3,22 @@ const CPU = @import("cpu.zig");
 const Memory = @import("memory.zig");
 
 pub fn OpDesc(comptime n: []const u8, comptime Arg: type, b: comptime_int, c: comptime_int) type {
-    return packed struct {
+    return extern struct {
         const name = n;
         const bytes = b;
         const cycles = c;
 
-        op: OpType,
-        arg: Arg,
+        const Self = @This();
+
+        op: OpType align(1),
+        arg: Arg align(1),
 
         pub fn init(op: OpType, arg: Arg) type {
             return .{ .op = op, .arg = arg };
         }
 
-        fn cast(data: []const u8) @This() {
-            return @bitCast(data[0 .. @sizeOf(OpType) + @sizeOf(Arg)].*);
+        fn cast(data: []const u8) Self {
+            return @bitCast(data[0..@sizeOf(Self)].*);
         }
     };
 }
@@ -484,7 +486,7 @@ pub const Ops = union(OpType) {
             inline else => |op| {
                 const pc, _ = @addWithOverflow(cpu.pc.u16, @TypeOf(op).Op.bytes);
                 cpu.pc.u16 = pc;
-                try op.exec(cpu, mem);
+                try op.exec(cpu, mem.*);
             },
         }
     }

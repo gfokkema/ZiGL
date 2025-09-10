@@ -73,12 +73,12 @@ pub fn init_dmg() CPU {
 }
 
 pub fn next(self: *CPU, mem: anytype) !Ops.Ops {
-    const opcode = try mem.get(self.pc.u16);
+    const opcode = try mem.*.get(self.pc.u16);
     const opt = std.meta.intToEnum(Ops.OpType, opcode) catch {
         std.debug.panic("Unsupported instruction: 0x{x}", .{opcode});
     };
     return switch (opt) {
-        inline else => |t| try Ops.Ops.init(t, mem.slice(self.pc.u16)),
+        inline else => |t| try Ops.Ops.init(t, mem.*.slice(self.pc.u16)),
     };
 }
 
