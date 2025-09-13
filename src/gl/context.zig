@@ -1,6 +1,6 @@
 const c = @import("c").c;
 const std = @import("std");
-const zlm = @import("zlm").SpecializeOn(f32);
+const zlm = @import("zlm").as(f32);
 const Allocator = std.mem.Allocator;
 
 const GL = @import("gl.zig");
