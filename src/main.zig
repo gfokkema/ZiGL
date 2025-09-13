@@ -1,5 +1,5 @@
 const std = @import("std");
-const zlm = @import("zlm").SpecializeOn(f32);
+const zlm = @import("zlm").as(f32);
 const Allocator = std.mem.Allocator;
 const Check = std.heap.Check;
 

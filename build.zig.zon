@@ -9,8 +9,8 @@
     },
     .dependencies = .{
         .zlm = .{
-            .url = "../zlm",
-            .hash = "zlm-0.1.0-GRQYaRqiAACb4uBy2-k0Hc8ooiucrJL6pvR9pdkbj49P",
+            .url = "git+https://github.com/ziglibs/zlm.git#b4fcb32f98bd895f940ef8819c375ac3f89077d7",
+            .hash = "zlm-0.1.0-LoZ6yI2sAACW1YdckJV4qm7HXCGcRkkk_wO36dUi5qcQ",
         },
         .zobj = .{
             .url = "git+https://github.com/chip2n/zig-obj.git?ref=master#c49e1575b267aecaa5ebf29c9ba456690ebd2407",
