@@ -3,6 +3,8 @@ const Allocator = std.mem.Allocator;
 const IO = @import("io.zig");
 const ROM = @import("rom.zig");
 
+pub const Linear = @import("memory/linear.zig");
+
 const Memory = @This();
 
 pub fn ffget(self: anytype, addr: u8) !u8 {
@@ -12,31 +14,6 @@ pub fn ffget(self: anytype, addr: u8) !u8 {
 pub fn ffset(self: anytype, addr: u8, value: anytype) !void {
     try self.set(@as(u16, @intCast(addr)) + 0xFF00, value);
 }
-
-pub const Linear = struct {
-    pub const ffget = Memory.ffget;
-    pub const ffset = Memory.ffset;
-
-    data: [0x10000]u8 = std.mem.zeroes([0x10000]u8),
-
-    pub fn init() !Linear {
-        return .{};
-    }
-
-    pub fn deinit(_: Linear) void {}
-
-    pub fn get(self: Linear, addr: u16) !u8 {
-        return self.data[addr];
-    }
-
-    pub fn set(self: *Linear, addr: u16, value: anytype) !void {
-        self.data[addr] = value;
-    }
-
-    pub fn slice(self: *Linear, addr: u16) []u8 {
-        return self.data[addr..];
-    }
-};
 
 pub const Mapper = struct {
     pub const Section = enum(u16) {

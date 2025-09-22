@@ -6,7 +6,7 @@ pub const Memory = @import("memory.zig");
 pub const ROM = @import("rom.zig");
 
 pub const System = GenericSystem(Memory.Mapper);
-pub const MemorySystem = GenericSystem(Memory.Linear);
+pub const LinearSystem = GenericSystem(Memory.Linear);
 
 pub fn GenericSystem(comptime M: type) type {
     return struct {
