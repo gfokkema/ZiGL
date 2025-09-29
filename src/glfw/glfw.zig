@@ -1,37 +1,13 @@
 const c = @import("c").c;
 const std = @import("std");
+const util = @import("util");
 const Allocator = std.mem.Allocator;
 
 pub const Event = @import("event.zig").Event;
 pub const ImGui = @import("imgui.zig");
 pub const Window = @import("window.zig");
 
-pub fn Fifo(comptime T: type, comptime S: comptime_int) type {
-    return struct {
-        const Self = @This();
-
-        buffer: [S]T,
-        stack: std.ArrayListUnmanaged(T),
-
-        pub fn init(alloc: Allocator) !*Self {
-            const self = try alloc.create(Self);
-            self.* = .{
-                .buffer = undefined,
-                .stack = std.ArrayListUnmanaged(T).initBuffer(&self.buffer),
-            };
-            return self;
-        }
-
-        pub fn deinit(self: *Self, alloc: Allocator) void {
-            alloc.destroy(self);
-        }
-
-        pub fn pop(self: *Self) ?T {
-            return self.stack.pop();
-        }
-    };
-}
-pub const Queue = Fifo(Event, 128);
+pub const Queue = util.Fifo(Event, 128);
 
 const GLFW = @This();
 

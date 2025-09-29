@@ -75,6 +75,9 @@ pub fn build(b: *std.Build) void {
     };
 
     const c = build_c(b, opt);
+    const util = b.createModule(
+        .{ .root_source_file = b.path("src/util.zig") },
+    );
     const zlm = b.dependency("zlm", .{});
     const zobj = b.dependency("zobj", .{});
 
@@ -84,6 +87,7 @@ pub fn build(b: *std.Build) void {
         .opt = opt,
         .modules = &.{
             .{ .name = "c", .module = c },
+            .{ .name = "util", .module = util },
             .{ .name = "zlm", .module = zlm.module("zlm") },
             .{ .name = "zobj", .module = zobj.module("obj") },
         },
@@ -95,6 +99,7 @@ pub fn build(b: *std.Build) void {
         .opt = opt,
         .modules = &.{
             .{ .name = "c", .module = c },
+            .{ .name = "util", .module = util },
             .{ .name = "zlm", .module = zlm.module("zlm") },
             .{ .name = "zobj", .module = zobj.module("obj") },
         },
