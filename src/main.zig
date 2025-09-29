@@ -12,7 +12,7 @@ const Args = struct {
     const path = "res/tetris.gb";
 };
 
-const Actions = struct {
+const UIActions = struct {
     pub fn desc(ctx: *anyopaque, buf: []u8) []const u8 {
         const system: *System.System = @ptrCast(@alignCast(ctx));
         return std.fmt.bufPrint(buf, "{f}", .{system.cpu}) catch {
@@ -61,8 +61,8 @@ pub fn main() !void {
             GLFW.ImGui.Text.init(name),
         }),
         GLFW.ImGui.Tree.init("CPU", &.{
-            GLFW.ImGui.DynamicText.init(&system, Actions.desc),
-            GLFW.ImGui.DynamicText.init(&system, Actions.memory),
+            GLFW.ImGui.DynamicText.init(&system, UIActions.desc),
+            GLFW.ImGui.DynamicText.init(&system, UIActions.memory),
         }),
     });
 

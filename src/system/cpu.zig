@@ -91,7 +91,7 @@ pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
 }
 
 const TestData = struct {
-    const State = struct {
+    const TestState = struct {
         const RAM = struct { u16, u8 };
         pc: u16,
         sp: u16,
@@ -112,8 +112,8 @@ const TestData = struct {
 
     const TestCase = struct {
         name: []const u8,
-        initial: State,
-        final: State,
+        initial: TestState,
+        final: TestState,
         cycles: []const Cycle,
     };
 };
