@@ -36,10 +36,12 @@ pub fn GenericSystem(comptime M: type) type {
         }
 
         pub fn step(self: *Self) !void {
-            const op = try self.cpu.next(&self.memory);
-            try op.exec(&self.cpu, &self.memory);
+            try self.cpu.step(&self.memory);
 
-            std.debug.print("0x{x:0>4}: {f}\n", .{ self.cpu.pc.u16, try self.cpu.next(&self.memory) });
+            std.debug.print("            pc: 0x{x:0>4}    op: {f}\n", .{
+                self.cpu.pc.u16,
+                try self.cpu.next(&self.memory),
+            });
         }
     };
 }

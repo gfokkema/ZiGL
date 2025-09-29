@@ -45,6 +45,13 @@ const Register = packed union {
     }
 };
 
+const State = enum {
+    FetchOp,
+    Execute,
+};
+
+state: State = .FetchOp,
+
 pc: Register = Register.Zero,
 sp: Register = Register.Zero, // stack pointer
 
@@ -80,6 +87,11 @@ pub fn next(self: *CPU, mem: anytype) !Ops.Ops {
     return switch (opt) {
         inline else => |t| try Ops.Ops.init(t, mem.*.slice(self.pc.u16)),
     };
+}
+
+pub fn step(self: *CPU, mem: anytype) !void {
+    const op = try self.next(mem);
+    try op.exec(self, mem);
 }
 
 pub fn format(self: CPU, writer: *std.io.Writer) std.io.Writer.Error!void {
